@@ -74,7 +74,7 @@ def vectorize(data, w2i, max_sentence_size, memory_size):
         Q.append(q)
         A.append(y)
 
-    return np.array(S), np.arary(A), np.array(A)
+    return np.array(S), np.array(Q), np.array(A)
 
 if __name__ == '__main__':
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
