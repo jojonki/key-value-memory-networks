@@ -10,7 +10,7 @@ from itertools import chain
 from sklearn import model_selection, metrics
 import pprint
 
-from process_data import load_task, vectorize, save_pickle, load_pickle
+from process_data import load_entities, load_task, vectorize, save_pickle, load_pickle
 from net.memn2n import MemN2N
 from net.memn2n_kv import MemN2N_KV, add_gradient_noise
 
@@ -47,28 +47,36 @@ def main(_):
     is_babi = False
     is_load_pickle = False
 
+    entities = None # only for movie dialog
+
     if is_load_pickle:
-        train_data = load_pickle('train_data.pickle')[:100]
-        test_data = load_pickle('test_data.pickle')[:100]
+        train_data = load_pickle('train_data.pickle')
+        test_data = load_pickle('test_data.pickle')
     else:
         if is_babi:
             train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt')
             test_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')
         else: # movie qa
-            train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_train.txt')
-            test_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_test.txt')
+            train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt')
+            test_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_test.txt')
+            entities = load_entities('./data/movie_dialog_dataset/entities.txt')
+            save_pickle(train_data, 'train_data.pickle')
+            save_pickle(test_data, 'test_data.pickle')
 
     data = train_data + test_data
-    data = data
 
     if is_load_pickle:
         vocab = load_pickle('vocab.pickle')
         w2i = load_pickle('w2i.pickle')
         i2w = load_pickle('i2w.pickle')
+        entities = load_pickle('entities.pickle')
     else:
         vocab = functools.reduce(lambda x, y: x | y, (set(list(chain.from_iterable(s)) + q + a) for s, q, a in data))
         w2i = dict((c, i) for i, c in enumerate(vocab, 1))
         i2w = dict((i, c) for i, c in enumerate(vocab, 1))
+        save_pickle(vocab, 'vocab.pickle')
+        save_pickle(w2i, 'w2i.pickle')
+        save_pickle(i2w, 'i2w.pickle')
 
     max_story_size = max(map(len, (s for s, _, _ in data)))
     len_list = list(map(len, chain.from_iterable(s for s, _, _ in data)))
@@ -87,17 +95,17 @@ def main(_):
     FLAGS.vocab_size = vocab_size
     print('max_story_size={}\nmax_sentence_size={}\nvocab_size={}'.format(max_story_size, max_sentence_size, vocab_size))
 
-    S, Q, A = vectorize(data, w2i, max_sentence_size, FLAGS.mem_size)
+    S, Q, A = vectorize(data, w2i, max_sentence_size, FLAGS.mem_size, entities)
     trainS, valS, trainQ, valQ, trainA, valA = model_selection.train_test_split(S, Q, A, test_size=0.1)
-    testS, testQ, testA = vectorize(test_data, w2i, max_sentence_size, FLAGS.mem_size)
+    # testS, testQ, testA = vectorize(test_data, w2i, max_sentence_size, FLAGS.mem_size, entities)
 
     n_train = trainS.shape[0]
-    n_test = testS.shape[0]
+    # n_test = testS.shape[0]
     n_valid = valS.shape
     print('train size={}\ntest size={}\nvalidation size={}'.format(n_train, n_test, n_valid))
 
     train_labels = np.argmax(trainA, axis=1)
-    test_labels = np.argmax(testA, axis=1)
+    # test_labels = np.argmax(testA, axis=1)
     valid_labels = np.argmax(valA, axis=1)
 
     batch_size = FLAGS.batch_size
@@ -183,18 +191,18 @@ def main(_):
             train_acc = metrics.accuracy_score(train_labels, train_preds)
             train_acc = '{0:.2f}'.format(train_acc)
             # eval dataset
-            val_preds = test_step(valS, valQ)
-            val_acc = metrics.accuracy_score(valid_labels, val_preds)
-            val_acc = '{0:.2f}'.format(val_acc)
+            # val_preds = test_step(valS, valQ)
+            # val_acc = metrics.accuracy_score(valid_labels, val_preds)
+            # val_acc = '{0:.2f}'.format(val_acc)
             # tesing dataset
-            test_preds = test_step(testS, testQ)
-            test_acc = metrics.accuracy_score(test_labels, test_preds)
-            test_acc = '{0:.2f}'.format(test_acc)
+            # test_preds = test_step(testS, testQ)
+            # test_acc = metrics.accuracy_score(test_labels, test_preds)
+            # test_acc = '{0:.2f}'.format(test_acc)
 
             print('===================================')
             print('Training Acc:', train_acc)
-            print('Validating Acc:', val_acc)
-            print('Testing Acc:', test_acc)
+            # print('Validating Acc:', val_acc)
+            # print('Testing Acc:', test_acc)
             print('===================================')
             # with open(FLAGS.open_file, 'a') as f:
                 # f.write('{}, {}, {}, {}\n'.format(FLAGS.task_id, test_acc, train_acc, val_acc))
