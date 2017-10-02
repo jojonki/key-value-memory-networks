@@ -7,15 +7,22 @@ import functools
 from itertools import chain
 
 def save_pickle(d, path):
+    print('save pickle to', path)
     with open(path, mode='wb') as f:
         pickle.dump(d, f)
 
 def load_pickle(path):
+    print('load', path)
     with open(path, mode='rb') as f:
         return pickle.load(f)
 
 def lower_list(word_list):
     return [w.lower() for w in word_list]
+
+def load_entities(path):
+    with open(path, 'r') as f:
+        lines = f.readlines()
+        return [e.lower().rstrip() for e in lines]
 
 def load_task(fpath):
     with open (fpath) as f:
@@ -52,7 +59,10 @@ def load_task(fpath):
 
     return data
 
-def vectorize(data, w2i, max_sentence_size, memory_size):
+def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
+    if entities:
+        e2i = dict((e, i) for i, e in enumerate(entities))
+
     S, Q, A = [], [], []
     for story, question, answer in data:
         # Vectroize story
@@ -71,15 +81,25 @@ def vectorize(data, w2i, max_sentence_size, memory_size):
         q = [w2i[w] for w in question] + [0] * q_pad_len
 
         # Vectroize answer
-        y = np.zeros(len(w2i) + 1) # +1 for nil word
-        for a in answer:
-            y[w2i[a]] = 1
+        if entities:
+            y = np.zeros(len(entities), dtype='byte')
+            for a in answer:
+                y[e2i[a]] = 1
+        else:
+            y = np.zeros(len(w2i) + 1) # +1 for nil word
+            for a in answer:
+                y[w2i[a]] = 1
 
         S.append(ss)
         Q.append(q)
         A.append(y)
+    
+    S = np.array(S, dtype=np.uint16)
+    Q = np.array(Q, dtype=np.uint16)
+    A = np.array(A, dtype='byte')
 
-    return np.array(S), np.array(Q), np.array(A)
+    return S, Q, A
+
 
 if __name__ == '__main__':
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
