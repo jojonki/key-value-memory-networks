@@ -7,7 +7,7 @@ from nltk.tokenize import word_tokenize
 import numpy as np
 import functools
 from itertools import chain
-from sklearn.model_selection import train_test_split
+from sklearn import model_selection, metrics
 import pprint
 
 from process_data import load_task, vectorize
@@ -68,7 +68,7 @@ def main(_):
     print('max_story_size={}\nmax_sentence_size={}\nvocab_size={}'.format(max_story_size, max_sentence_size, vocab_size))
 
     S, Q, A = vectorize(data, w2i, max_sentence_size, memory_size)
-    trainS, valS, trainQ, valQ, trainA, valA = train_test_split(S, Q, A, test_size=0.1)
+    trainS, valS, trainQ, valQ, trainA, valA = model_selection.train_test_split(S, Q, A, test_size=0.1)
     testS, testQ, testA = vectorize(test_data, w2i, max_sentence_size, memory_size)
 
     n_train = trainS.shape[0]
