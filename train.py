@@ -28,7 +28,7 @@ tf.flags.DEFINE_integer("evaluation_interval", 50, "Evaluate and print results e
 tf.flags.DEFINE_integer("batch_size", 32, "Batch size for training.")
 tf.flags.DEFINE_integer("feature_size", 40, "Feature size")
 tf.flags.DEFINE_integer("n_hop", 3, "Number of hops in the Memory Network.")
-tf.flags.DEFINE_integer("n_epoch", 100, "Number of epochs to train for.")
+tf.flags.DEFINE_integer("n_epoch", 30, "Number of epochs to train for.")
 tf.flags.DEFINE_integer("embd_size", 100, "Embedding size for embedding matrices.")
 tf.flags.DEFINE_integer("mem_size", 20, "Maximum size of memory.")
 tf.flags.DEFINE_integer("task_id", 1, "bAbI task id, 1 <= id <= 20")
@@ -77,8 +77,8 @@ def main(_):
     print('train size={}\ntest size={}\nvalidation size={}'.format(n_train, n_test, n_valid))
 
     train_labels = np.argmax(trainA, axis=1)
-    test_labels = np.argmax(trainA, axis=1)
-    valid_labels = np.argmax(trainA, axis=1)
+    test_labels = np.argmax(testA, axis=1)
+    valid_labels = np.argmax(valA, axis=1)
 
     batch_size = FLAGS.batch_size
     batch_indices = list(zip(range(0, n_train - batch_size, batch_size), range(batch_size, n_train, batch_size)))
@@ -155,7 +155,7 @@ def main(_):
                     val_preds = test_step(valS, valQ)
                     val_acc = metrics.accuracy_score(np.array(val_preds), valid_labels)
                     print(val_preds)
-                    print('Epoch', t)
+                    print('Epoch', epoch)
                     print('Validation Acc: {0:.2f}'.format(val_acc))
 
             # test on train dataset
@@ -164,12 +164,20 @@ def main(_):
             train_acc = '{0:.2f}'.format(train_acc)
             # eval dataset
             val_preds = test_step(valS, valQ)
-            val_acc = metrics.accuracy_score(test_labels, teset_preds)
-            val_acc = '{0:.2f}'.format(test_acc)
-            print('Testing Acc: {0:.2f}'.format(test_acc))
-            print('Final Result to {}'.format(Flags.output_file))
-            with open(FLAGS.open_file, 'a') as f:
-                f.write('{}, {}, {}, {}\n'.format(FLAGS.task_id, test_acc, train_acc, val_acc))
+            val_acc = metrics.accuracy_score(valid_labels, val_preds)
+            val_acc = '{0:.2f}'.format(val_acc)
+            # tesing dataset
+            test_preds = test_step(testS, testQ)
+            test_acc = metrics.accuracy_score(test_labels, test_preds)
+            test_acc = '{0:.2f}'.format(test_acc)
+
+            print('===================================')
+            print('Training Acc:', train_acc)
+            print('Validating Acc:', val_acc)
+            print('Testing Acc:', test_acc)
+            print('===================================')
+            # with open(FLAGS.open_file, 'a') as f:
+                # f.write('{}, {}, {}, {}\n'.format(FLAGS.task_id, test_acc, train_acc, val_acc))
 
             # TODO: Should like this
             # if FLAGS.is_test:
@@ -180,4 +188,3 @@ def main(_):
 
 if __name__ == '__main__':
     tf.app.run()
-    print("end of code")
