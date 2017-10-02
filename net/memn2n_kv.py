@@ -53,7 +53,7 @@ def zero_nil_slot(t, name=None):
 
 class MemN2N_KV(object):
     """Key Value Memory Network."""
-    def __init__(self, config, feature_size=30, reader='bow', l2_lambda=0.2, name='KeyValueM2mN2N'): # TODO: feature_size
+    def __init__(self, config, is_babi, feature_size=30, reader='bow', l2_lambda=0.2, name='KeyValueM2mN2N'): # TODO: feature_size
         # batch_size, vocab_size,
         #              query_size, story_size, memory_key_size,
         #              memory_value_size, embedding_size,
@@ -98,6 +98,8 @@ class MemN2N_KV(object):
         self.memory_value_size = config.memory_value_size
         self.encoding = tf.constant(position_encoding(self.story_size, self.embd_size), name="encoding")
         self.reader = 'bow'
+        self.is_babi = is_babi
+        self.n_entity = config.n_entity
         self._build_inputs()
 
         d = feature_size
@@ -185,7 +187,10 @@ class MemN2N_KV(object):
 
             self.memory_value = tf.placeholder(tf.int32, [None, self.memory_value_size, self.story_size], name='memory_value')
 
-            self.labels = tf.placeholder(tf.float32, [None, self.vocab_size], name='answer')
+            if self.is_babi:
+                self.labels = tf.placeholder(tf.float32, [None, self.vocab_size], name='answer')
+            else:
+                self.labels = tf.placeholder(tf.float32, [None, self.n_entity], name='answer')
             self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     '''

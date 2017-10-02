@@ -11,7 +11,7 @@ from sklearn import model_selection, metrics
 import pprint
 
 from process_data import load_entities, load_task, vectorize, save_pickle, load_pickle
-from net.memn2n import MemN2N
+# from net.memn2n import MemN2N
 from net.memn2n_kv import MemN2N_KV, add_gradient_noise
 
 pp = pprint.PrettyPrinter()
@@ -45,7 +45,7 @@ FLAGS = tf.flags.FLAGS
 
 def main(_):
     is_babi = False
-    is_load_pickle = False
+    is_load_pickle = True
 
     entities = None # only for movie dialog
 
@@ -78,6 +78,11 @@ def main(_):
         save_pickle(w2i, 'w2i.pickle')
         save_pickle(i2w, 'i2w.pickle')
 
+    if is_babi:
+        FLAGS.n_entity = None
+    else:
+        FLAGS.n_entity = len(entities)
+
     max_story_size = max(map(len, (s for s, _, _ in data)))
     len_list = list(map(len, chain.from_iterable(s for s, _, _ in data)))
     if len(len_list) != 0:
@@ -97,15 +102,15 @@ def main(_):
 
     S, Q, A = vectorize(data, w2i, max_sentence_size, FLAGS.mem_size, entities)
     trainS, valS, trainQ, valQ, trainA, valA = model_selection.train_test_split(S, Q, A, test_size=0.1)
-    # testS, testQ, testA = vectorize(test_data, w2i, max_sentence_size, FLAGS.mem_size, entities)
+    testS, testQ, testA = vectorize(test_data, w2i, max_sentence_size, FLAGS.mem_size, entities)
 
     n_train = trainS.shape[0]
-    # n_test = testS.shape[0]
+    n_test = testS.shape[0]
     n_valid = valS.shape
     print('train size={}\ntest size={}\nvalidation size={}'.format(n_train, n_test, n_valid))
 
     train_labels = np.argmax(trainA, axis=1)
-    # test_labels = np.argmax(testA, axis=1)
+    test_labels = np.argmax(testA, axis=1)
     valid_labels = np.argmax(valA, axis=1)
 
     batch_size = FLAGS.batch_size
@@ -125,7 +130,7 @@ def main(_):
         optimizer = tf.train.AdamOptimizer(learning_rate=lr, epsilon=FLAGS.epsilon)
 
         with tf.Session() as sess:
-            model = MemN2N_KV(FLAGS)#, sess)
+            model = MemN2N_KV(FLAGS, is_babi)#, sess)
             # model.build_model()
 
             # TODO
