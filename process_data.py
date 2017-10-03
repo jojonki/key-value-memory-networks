@@ -5,6 +5,7 @@ from nltk.tokenize import word_tokenize
 import numpy as np
 import functools
 from itertools import chain
+import copy
 
 def save_pickle(d, path):
     print('save pickle to', path)
@@ -100,13 +101,37 @@ def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
 
     return S, Q, A
 
+def load_kv_pairs(path, entities):
+    """load key-value paris from KB"""
 
+    w2i = dict((e, i) for i, e in enumerate(entities))
+    data = []
+    with open(path, 'r') as f:
+        lines = f.readlines()
+        data = [l.rstrip().split(' ', 1)[1] for l in lines if l != '\n']
+    kv_pairs = []
+    for sentence in data:
+        k = []
+        for w in sentence:
+            if w in w2i:
+                k.append(w2i[w])
+            elif w.find('_') != -1:
+                w2i[w] = len(w2i)
+                k.append(w2i[w])
+        v = copy.deepcopy(k)
+        kv_pairs.append((k, v))
+
+    return kv_pairs
+        
 if __name__ == '__main__':
+    entities = load_pickle('entities.pickle')
+    kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities)
+    
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
-    data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')
+    # data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')
 
-    vocab = functools.reduce(lambda x, y: x | y, (set(list(chain.from_iterable(s)) + q + a) for s, q, a in data))
-    w2i = dict((c, i) for i, c in enumerate(vocab, 1))
-    i2w = dict((i, c) for i, c in enumerate(vocab, 1))
+    # vocab = functools.reduce(lambda x, y: x | y, (set(list(chain.from_iterable(s)) + q + a) for s, q, a in data))
+    # w2i = dict((c, i) for i, c in enumerate(vocab, 1))
+    # i2w = dict((i, c) for i, c in enumerate(vocab, 1))
     # print(len(vocab))    print("HOGE")
     # S, Q, A = vectorize(data,)
