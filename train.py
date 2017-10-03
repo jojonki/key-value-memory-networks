@@ -10,7 +10,7 @@ from itertools import chain
 from sklearn import model_selection, metrics
 import pprint
 
-from process_data import load_entities, load_task, vectorize, save_pickle, load_pickle
+from process_data import load_entities, load_task, vectorize, save_pickle, load_pickle, load_kv_pairs
 # from net.memn2n import MemN2N
 from net.memn2n_kv import MemN2N_KV, add_gradient_noise
 
@@ -44,15 +44,17 @@ tf.flags.DEFINE_string("checkpoint_dir", "checkpoints", "checkpoint directory [c
 FLAGS = tf.flags.FLAGS
 
 def main(_):
-    is_babi = True
-    is_load_pickle = False
+    is_babi = False
+    is_load_pickle = True
 
     entities = None # only for movie dialog
 
     if is_load_pickle:
-        train_data = load_pickle('train_data.pickle')[:100]
-        test_data = load_pickle('test_data.pickle')[:100]
+        train_data = load_pickle('train_data.pickle')[:1000]
+        test_data = load_pickle('test_data.pickle')[:1000]
         kv_pairs = load_pickle('kv_pairs.pickle')
+        k_list = np.array([kv[0] for kv in kv_pairs])
+        # v_list = np.array([kv[1] for kv in kv_pairs]) # key and val is same in Sentence Level
     else:
         if is_babi:
             train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt')
@@ -95,6 +97,8 @@ def main(_):
 
     FLAGS.story_size = max_story_size
     FLAGS.mem_size = min(FLAGS.mem_size, max_story_size + 1) # avoid memory_size == 0
+    if not is_babi:
+        FLAGS.mem_size = len(kv_pairs)
     FLAGS.query_size = max_sentence_size
     FLAGS.sentence_size = max_sentence_size
     FLAGS.memory_key_size = FLAGS.mem_size
@@ -150,13 +154,14 @@ def main(_):
             train_op = optimizer.apply_gradients(nil_grads_and_vars, name="train_op", global_step=global_step)
             sess.run(tf.global_variables_initializer())
 
-            def train_step(s, q, a):
-            # def train_step(s, q, a, kv_pairs):
+            # def train_step(s, q, a):
+            def train_step(s, q, a, k):
                 feed_dict = {
                     model.query: q,
-                    model.memory_key: s,
-                    model.memory_value: s,
-                    # model.kv_pairs: v,
+                    # model.memory_key: s,
+                    # model.memory_value: s,
+                    model.memory_key: k,
+                    model.memory_value: k, # k==v in Sentence Level
                     model.labels: a,
                     model.keep_prob: FLAGS.keep_prob
                 }
@@ -174,6 +179,7 @@ def main(_):
                 return predicts
 
             for epoch in range(1, FLAGS.n_epoch+1):
+                print('Epoch', epoch)
                 np.random.shuffle(batch_indices)
                 train_preds = []
                 for start in range(0, n_train, batch_size):
@@ -181,12 +187,11 @@ def main(_):
                     s = trainS[start:end] # (bs, story_size, sentence_size) = (32, 10, 6)
                     q = trainQ[start:end] # (bs, sentence_size) = (32, 6)
                     a = trainA[start:end] # (bs, vocab_size) = (32, 20)
-                    predict_op = train_step(s, q, a)
-                    # predict_op = train_step(s, q, a, kv_pairs)
+                    # predict_op = train_step(s, q, a)
+                    predict_op = train_step(s, q, a, np.repeat(k_list, batch_size, axis=0))
                     train_preds += list(predict_op)
                 
                 train_acc = metrics.accuracy_score(np.array(train_preds), train_labels)
-                print('Epoch', epoch)
                 print('Training Acc: {0:.6f}'.format(train_acc))
 
                 if epoch % FLAGS.evaluation_interval == 0:
