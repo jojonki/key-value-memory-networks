@@ -27,7 +27,7 @@ tf.flags.DEFINE_float("keep_prob", 1.0, "Keep probability for dropout")
 tf.flags.DEFINE_integer("evaluation_interval", 50, "Evaluate and print results every x epochs")
 tf.flags.DEFINE_integer("batch_size", 32, "Batch size for training.")
 tf.flags.DEFINE_integer("feature_size", 40, "Feature size")
-tf.flags.DEFINE_integer("n_hop", 2, "Number of hops in the Memory Network.")
+tf.flags.DEFINE_integer("n_hop", 3, "Number of hops in the Memory Network.")
 tf.flags.DEFINE_integer("n_epoch", 30, "Number of epochs to train for.")
 tf.flags.DEFINE_integer("embd_size", 100, "Embedding size for embedding matrices.")
 tf.flags.DEFINE_integer("mem_size", 20, "Maximum size of memory.")
@@ -93,10 +93,10 @@ def main(_):
     max_sentence_size = max(sentence_size, question_size)
     vocab_size = len(w2i) + 1 # +1 for nil word
 
-    # FLAGS.story_size = max_story_size
-    FLAGS.story_size = max_sentence_size # TODO using sentence size is strange
-    # FLAGS.mem_size = min(FLAGS.mem_size, max_story_size)
+    FLAGS.story_size = max_story_size
+    FLAGS.mem_size = min(FLAGS.mem_size, max_story_size)
     FLAGS.query_size = max_sentence_size
+    FLAGS.sentence_size = max_sentence_size
     FLAGS.memory_key_size = FLAGS.mem_size
     FLAGS.memory_value_size = FLAGS.mem_size
     FLAGS.vocab_size = vocab_size
