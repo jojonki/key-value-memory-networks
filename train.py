@@ -27,7 +27,7 @@ tf.flags.DEFINE_float("keep_prob", 1.0, "Keep probability for dropout")
 tf.flags.DEFINE_integer("evaluation_interval", 50, "Evaluate and print results every x epochs")
 tf.flags.DEFINE_integer("batch_size", 32, "Batch size for training.")
 tf.flags.DEFINE_integer("feature_size", 40, "Feature size")
-tf.flags.DEFINE_integer("n_hop", 3, "Number of hops in the Memory Network.")
+tf.flags.DEFINE_integer("n_hop", 2, "Number of hops in the Memory Network.")
 tf.flags.DEFINE_integer("n_epoch", 30, "Number of epochs to train for.")
 tf.flags.DEFINE_integer("embd_size", 100, "Embedding size for embedding matrices.")
 tf.flags.DEFINE_integer("mem_size", 20, "Maximum size of memory.")
@@ -182,19 +182,19 @@ def main(_):
                 
                 train_acc = metrics.accuracy_score(np.array(train_preds), train_labels)
                 print('Epoch', epoch)
-                print('Training Acc: {0:.2f}'.format(train_acc))
+                print('Training Acc: {0:.6f}'.format(train_acc))
 
                 if epoch % FLAGS.evaluation_interval == 0:
                     val_preds = test_step(valS, valQ)
                     val_acc = metrics.accuracy_score(np.array(val_preds), valid_labels)
                     print(val_preds)
                     print('Epoch', epoch)
-                    print('Validation Acc: {0:.2f}'.format(val_acc))
+                    print('Validation Acc: {0:.6f}'.format(val_acc))
 
             # test on train dataset
             train_preds = test_step(trainS, trainQ)
             train_acc = metrics.accuracy_score(train_labels, train_preds)
-            train_acc = '{0:.2f}'.format(train_acc)
+            train_acc = '{0:.6f}'.format(train_acc)
             # eval dataset
             # val_preds = test_step(valS, valQ)
             # val_acc = metrics.accuracy_score(valid_labels, val_preds)
