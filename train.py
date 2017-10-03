@@ -10,7 +10,7 @@ from itertools import chain
 from sklearn import model_selection, metrics
 import pprint
 
-from process_data import load_entities, load_task, vectorize, save_pickle, load_pickle, load_kv_pairs
+from process_data import load_entities, load_task, vectorize, vectorize_kv_pairs, save_pickle, load_pickle, load_kv_pairs
 # from net.memn2n import MemN2N
 from net.memn2n_kv import MemN2N_KV, add_gradient_noise
 
@@ -53,7 +53,7 @@ def main(_):
         train_data = load_pickle('train_data.pickle')[:1000]
         test_data = load_pickle('test_data.pickle')[:1000]
         kv_pairs = load_pickle('kv_pairs.pickle')
-        k_list = np.array([kv[0] for kv in kv_pairs])
+        # k_list = np.array([kv[] for kv in kv_pairs])
         # v_list = np.array([kv[1] for kv in kv_pairs]) # key and val is same in Sentence Level
     else:
         if is_babi:
@@ -106,13 +106,16 @@ def main(_):
     FLAGS.vocab_size = vocab_size
     print('max_story_size={}\nmax_sentence_size={}\nvocab_size={}'.format(max_story_size, max_sentence_size, vocab_size))
 
+    if not is_babi:
+        kv_pairs = vectorize_kv_pairs(kv_pairs, max_sentence_size, FLAGS.mem_size, entities)
+
     S, Q, A = vectorize(data, w2i, max_sentence_size, FLAGS.mem_size, entities)
     trainS, valS, trainQ, valQ, trainA, valA = model_selection.train_test_split(S, Q, A, test_size=0.1)
     testS, testQ, testA = vectorize(test_data, w2i, max_sentence_size, FLAGS.mem_size, entities)
 
     n_train = trainS.shape[0]
     n_test = testS.shape[0]
-    n_valid = valS.shape
+    n_valid = valS.shape[0]
     print('train size={}\ntest size={}\nvalidation size={}'.format(n_train, n_test, n_valid))
 
     train_labels = np.argmax(trainA, axis=1)
@@ -154,17 +157,24 @@ def main(_):
             train_op = optimizer.apply_gradients(nil_grads_and_vars, name="train_op", global_step=global_step)
             sess.run(tf.global_variables_initializer())
 
-            # def train_step(s, q, a):
-            def train_step(s, q, a, k):
-                feed_dict = {
-                    model.query: q,
-                    # model.memory_key: s,
-                    # model.memory_value: s,
-                    model.memory_key: k,
-                    model.memory_value: k, # k==v in Sentence Level
-                    model.labels: a,
-                    model.keep_prob: FLAGS.keep_prob
-                }
+            def train_step(s, q, a, k=None):
+                if is_babi:
+                    feed_dict = {
+                        model.query: q,
+                        model.memory_key: s,
+                        model.memory_value: s,
+                        model.labels: a,
+                        model.keep_prob: FLAGS.keep_prob
+                    }
+                else:
+                    feed_dict = {
+                        model.query: q,
+                        model.memory_key: k,
+                        model.memory_value: k, # k==v in Sentence Level
+                        model.labels: a,
+                        model.keep_prob: FLAGS.keep_prob
+                    }
+
                 _, step, predict_op = sess.run([train_op, global_step, model.predict_op], feed_dict=feed_dict)
                 return predict_op
 
@@ -188,7 +198,10 @@ def main(_):
                     q = trainQ[start:end] # (bs, sentence_size) = (32, 6)
                     a = trainA[start:end] # (bs, vocab_size) = (32, 20)
                     # predict_op = train_step(s, q, a)
-                    predict_op = train_step(s, q, a, np.repeat(k_list, batch_size, axis=0))
+                    if is_babi:
+                        predict_op = train_step(s, q, a)
+                    else:
+                        predict_op = train_step(s, q, a, np.repeat(kv_pairs, batch_size, axis=0))
                     train_preds += list(predict_op)
                 
                 train_acc = metrics.accuracy_score(np.array(train_preds), train_labels)

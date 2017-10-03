@@ -72,7 +72,7 @@ def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
             s_pad_len = max(0, max_sentence_size - len(sentence))
             ss.append([w2i[w] for w in sentence] + [0] * s_pad_len)
 
-        ss = ss[::-1][:memory_size] # discard old memory lager than memory_size
+        ss = ss[::-1][:memory_size] # discard old memory lager than memory_size(max_story_size)
         # pad to memory_size
         lm = max(0, memory_size - len(ss))
         for _ in range(lm):
@@ -102,31 +102,57 @@ def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
 
     return S, Q, A
 
-def load_kv_pairs(path, entities):
+def load_kv_pairs(path, entities, is_save_pickle=False):
     """load key-value paris from KB"""
-
-    w2i = dict((e, i) for i, e in enumerate(entities))
-    data = []
+    rel = ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'has_plot'] # TODO hard code
+    kv_pairs = []
     with open(path, 'r') as f:
         lines = f.readlines()
-        data = [l.rstrip().split(' ', 1)[1] for l in lines if l != '\n']
-    kv_pairs = []
-    for sentence in data:
-        k = []
-        for w in sentence:
-            if w in w2i:
-                k.append(w2i[w])
-            elif w.find('_') != -1:
-                w2i[w] = len(w2i)
-                k.append(w2i[w])
-        v = copy.deepcopy(k)
-        kv_pairs.append((k, v))
+        for l in lines:
+            if l == '\n': continue
+            k = []
+            turn, left = l.rstrip().split(' ', 1)
+
+            for r in rel:
+                if r in left:
+                    tmp = left.split(r)
+                    # TODO
+                    k.append(tmp[0].rstrip().lower())
+                    k.append(tmp[1].split(',')[0].lstrip().lower()) # TODO may not valid entity
+                    kv_pairs.append(k)
+                    break
+        # kv_pairs = [l.rstrip().split(' ', 1)[1].split() for l in lines if l != '\n'] # key==value in Sentence Level
+
+    if is_save_pickle:
+        save_pickle(kv_pairs, 'kv_pairs.pickle')
 
     return kv_pairs
         
+def vectorize_kv_pairs(kv_pairs, max_sentence_size, memory_size, entities):
+    vec_kv_pairs = []
+    w2i = dict((e, i) for i, e in enumerate(entities))
+    w2i['directed_by'] = len(w2i)
+    w2i['written_by'] = len(w2i)
+    w2i['starred_actors'] = len(w2i)
+    w2i['release_year'] = len(w2i)
+    w2i['has_genre'] = len(w2i)
+    w2i['has_tags'] = len(w2i)
+    w2i['has_plot'] = len(w2i)
+    for sentence in kv_pairs:
+        pad_len = max(0, max_sentence_size - len(sentence))
+        vec_kv_pairs.append([w2i[w] for w in sentence if w in w2i] + [0] * pad_len)
+    
+    # pad to memory_size
+    lm = max(0, memory_size - len(vec_kv_pairs))
+    for _ in range(lm):
+        vec_kv_pairs.append([0] * max_sentence_size)
+
+    return vec_kv_pairs
+
 if __name__ == '__main__':
     entities = load_pickle('entities.pickle')
-    kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities)
+    kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities, True)
+    vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
     
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
     # data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')
