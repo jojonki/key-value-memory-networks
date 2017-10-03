@@ -71,6 +71,8 @@ def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
         for sentence in story:
             s_pad_len = max(0, max_sentence_size - len(sentence))
             ss.append([w2i[w] for w in sentence] + [0] * s_pad_len)
+        while len(ss) < memory_size:
+            ss.append([0] * max_sentence_size) # story padding
         ss = ss[::-1][:memory_size] # discard old memory lager than memory_size
         # pad to memory_size
         lm = max(0, memory_size - len(ss))

@@ -94,7 +94,7 @@ def main(_):
     vocab_size = len(w2i) + 1 # +1 for nil word
 
     FLAGS.story_size = max_story_size
-    FLAGS.mem_size = min(FLAGS.mem_size, max_story_size)
+    FLAGS.mem_size = min(FLAGS.mem_size, max_story_size + 1) # avoid memory_size == 0
     FLAGS.query_size = max_sentence_size
     FLAGS.sentence_size = max_sentence_size
     FLAGS.memory_key_size = FLAGS.mem_size
