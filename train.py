@@ -44,14 +44,15 @@ tf.flags.DEFINE_string("checkpoint_dir", "checkpoints", "checkpoint directory [c
 FLAGS = tf.flags.FLAGS
 
 def main(_):
-    is_babi = False
-    is_load_pickle = True
+    is_babi = True
+    is_load_pickle = False
 
     entities = None # only for movie dialog
 
     if is_load_pickle:
-        train_data = load_pickle('train_data.pickle')
-        test_data = load_pickle('test_data.pickle')
+        train_data = load_pickle('train_data.pickle')[:100]
+        test_data = load_pickle('test_data.pickle')[:100]
+        kv_pairs = load_pickle('kv_pairs.pickle')
     else:
         if is_babi:
             train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt')
@@ -60,8 +61,8 @@ def main(_):
             train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt')
             test_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_test.txt')
             entities = load_entities('./data/movie_dialog_dataset/entities.txt')
-            save_pickle(train_data, 'train_data.pickle')
-            save_pickle(test_data, 'test_data.pickle')
+            # save_pickle(train_data, 'train_data.pickle')
+            # save_pickle(test_data, 'test_data.pickle')
 
     data = train_data + test_data
 
@@ -71,13 +72,12 @@ def main(_):
         i2w = load_pickle('i2w.pickle')
         entities = load_pickle('entities.pickle')
     else:
-        vocab = functools.reduce(lambda x, y: x | y, (set(list(chain.from_iterable(s)) + q + a) for s, q, a in data))
+        vocab = functools.reduce(lambda x, y: x | y, (set(chain(chain.from_iterable(s), q, a)) for s, q, a in data))
         w2i = dict((c, i) for i, c in enumerate(vocab, 1))
         i2w = dict((i, c) for i, c in enumerate(vocab, 1))
-        save_pickle(vocab, 'vocab.pickle')
-        save_pickle(w2i, 'w2i.pickle')
-        save_pickle(i2w, 'i2w.pickle')
-
+        # save_pickle(vocab, 'vocab.pickle')
+        # save_pickle(w2i, 'w2i.pickle')
+        # save_pickle(i2w, 'i2w.pickle')
     if is_babi:
         FLAGS.n_entity = None
     else:
@@ -93,7 +93,9 @@ def main(_):
     max_sentence_size = max(sentence_size, question_size)
     vocab_size = len(w2i) + 1 # +1 for nil word
 
-    FLAGS.story_size = max_sentence_size
+    # FLAGS.story_size = max_story_size
+    FLAGS.story_size = max_sentence_size # TODO using sentence size is strange
+    # FLAGS.mem_size = min(FLAGS.mem_size, max_story_size)
     FLAGS.query_size = max_sentence_size
     FLAGS.memory_key_size = FLAGS.mem_size
     FLAGS.memory_value_size = FLAGS.mem_size
@@ -149,10 +151,12 @@ def main(_):
             sess.run(tf.global_variables_initializer())
 
             def train_step(s, q, a):
+            # def train_step(s, q, a, kv_pairs):
                 feed_dict = {
                     model.query: q,
                     model.memory_key: s,
                     model.memory_value: s,
+                    # model.kv_pairs: v,
                     model.labels: a,
                     model.keep_prob: FLAGS.keep_prob
                 }
@@ -178,6 +182,7 @@ def main(_):
                     q = trainQ[start:end] # (bs, sentence_size) = (32, 6)
                     a = trainA[start:end] # (bs, vocab_size) = (32, 20)
                     predict_op = train_step(s, q, a)
+                    # predict_op = train_step(s, q, a, kv_pairs)
                     train_preds += list(predict_op)
                 
                 train_acc = metrics.accuracy_score(np.array(train_preds), train_labels)
