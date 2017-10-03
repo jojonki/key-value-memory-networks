@@ -123,11 +123,14 @@ class MemN2N_KV(object):
                                   initializer=tf.contrib.layers.xavier_initializer())
 
         # Embedding layer
-        with tf.device('/cpu:0'), tf.name_scope("embedding"):
+        # with tf.device('/cpu:0'), tf.name_scope("embedding"):
+        with tf.device('/gpu:0'), tf.name_scope("embedding"):
             nil_word_slot = tf.zeros([1, self.embd_size])
             self.W = tf.concat([nil_word_slot, tf.get_variable('W', shape=[self.vocab_size-1, self.embd_size],
                                                                   initializer=tf.contrib.layers.xavier_initializer())], 0)
             self.W_memory = tf.concat([nil_word_slot, tf.get_variable('W_memory', shape=[self.vocab_size-1, self.embd_size],
+                                                                         initializer=tf.contrib.layers.xavier_initializer())], 0)
+            self.W_memory2 = tf.concat([nil_word_slot, tf.get_variable('W_memory2', shape=[self.n_entity-1, self.embd_size],
                                                                          initializer=tf.contrib.layers.xavier_initializer())], 0)
             # self.W_memory = self.W
             self._nil_vars = set([self.W.name, self.W_memory.name])
@@ -158,7 +161,8 @@ class MemN2N_KV(object):
             #                         initializer=tf.contrib.layers.xavier_initializer())
         
         #logits_bias = tf.get_variable('logits_bias', [self.vocab_size])
-        y_tmp = tf.matmul(self.B, self.W_memory, transpose_b=True)
+        # y_tmp = tf.matmul(self.B, self.W_memory, transpose_b=True)
+        y_tmp = tf.matmul(self.B, self.W_memory2, transpose_b=True)
         with tf.name_scope("prediction"):
             logits = tf.matmul(o, y_tmp)# + logits_bias
             #logits = tf.nn.dropout(tf.matmul(o, self.B) + logits_bias, self.keep_prob)
