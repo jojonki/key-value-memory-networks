@@ -124,6 +124,7 @@ def main(_):
 
     batch_size = FLAGS.batch_size
     batch_indices = list(zip(range(0, n_train - batch_size, batch_size), range(batch_size, n_train, batch_size)))
+    kv_pairs_batch = np.repeat(kv_pairs, batch_size, axis=0)
 
     with tf.Graph().as_default():
         session_conf = tf.ConfigProto(
@@ -201,7 +202,8 @@ def main(_):
                     if is_babi:
                         predict_op = train_step(s, q, a)
                     else:
-                        predict_op = train_step(s, q, a, np.repeat(kv_pairs, batch_size, axis=0))
+                        # predict_op = train_step(s, q, a, np.repeat(kv_pairs, batch_size, axis=0))
+                        predict_op = train_step(s, q, a, kv_pairs_batch)
                     train_preds += list(predict_op)
                 
                 train_acc = metrics.accuracy_score(np.array(train_preds), train_labels)
