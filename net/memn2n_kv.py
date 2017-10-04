@@ -93,10 +93,11 @@ class MemN2N_KV(object):
         self.sentence_size = config.sentence_size
         #self._wiki_sentence_size = doc_size
         self.memory_key_size = config.memory_key_size
+        self.memory_value_size = config.memory_value_size
+        self.max_memory_kv_size = config.max_memory_kv_size
         self.embd_size = config.embd_size
         self.n_hop = config.n_hop
         self.name = name
-        self.memory_value_size = config.memory_value_size
         self.encoding = tf.constant(position_encoding(self.sentence_size, self.embd_size), name="encoding")
         self.reader = 'bow'
         self.is_babi = is_babi
@@ -145,9 +146,14 @@ class MemN2N_KV(object):
             self.mvalues_embedded_chars = tf.nn.embedding_lookup(self.W_memory, self.memory_value)
 
         if reader == 'bow':
-            q_r = tf.reduce_sum(self.embedded_chars*self.encoding, 1) 
-            doc_r = tf.reduce_sum(self.mkeys_embedded_chars*self.encoding, 2)
-            value_r = tf.reduce_sum(self.mvalues_embedded_chars*self.encoding, 2)
+            if is_babi:
+                q_r = tf.reduce_sum(self.embedded_chars*self.encoding, 1) 
+                doc_r = tf.reduce_sum(self.mkeys_embedded_chars*self.encoding, 2)
+                value_r = tf.reduce_sum(self.mvalues_embedded_chars*self.encoding, 2)
+            else:
+                q_r = tf.reduce_sum(self.embedded_chars, 1) 
+                doc_r = tf.reduce_sum(self.mkeys_embedded_chars, 2)
+                value_r = tf.reduce_sum(self.mvalues_embedded_chars, 2)
 
         r_list = []
         for _ in range(self.n_hop):
@@ -187,16 +193,17 @@ class MemN2N_KV(object):
 
     def _build_inputs(self):
         with tf.name_scope("input"):
-            self.memory_key = tf.placeholder(tf.int32, [None, self.memory_value_size, self.sentence_size], name='memory_key')
-            
             self.query = tf.placeholder(tf.int32, [None, self.query_size], name='question')
 
-            self.memory_value = tf.placeholder(tf.int32, [None, self.memory_value_size, self.sentence_size], name='memory_value')
-
             if self.is_babi:
+                self.memory_key = tf.placeholder(tf.int32, [None, self.memory_key_size, self.sentence_size], name='memory_key')
+                self.memory_value = tf.placeholder(tf.int32, [None, self.memory_value_size, self.sentence_size], name='memory_value')
                 self.labels = tf.placeholder(tf.float32, [None, self.vocab_size], name='answer')
             else:
+                self.memory_key = tf.placeholder(tf.int32, [None, self.memory_key_size, self.max_memory_kv_size], name='memory_key')
+                self.memory_value = tf.placeholder(tf.int32, [None, self.memory_value_size, self.max_memory_kv_size], name='memory_value')
                 self.labels = tf.placeholder(tf.float32, [None, self.n_entity], name='answer')
+
             self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     '''

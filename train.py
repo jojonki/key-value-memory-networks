@@ -53,7 +53,7 @@ def main(_):
     if is_load_pickle:
         train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:1000]
         # test_data = load_pickle('mov_task1_qa_pipe_test.pickle')
-        kv_pairs = load_pickle('mov_kv_pairs.pickle')
+        kv_pairs = load_pickle('mov_kv_pairs.pickle')[:10000]
     else:
         if is_babi:
             train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt')
@@ -128,10 +128,10 @@ def main(_):
     batch_size = FLAGS.batch_size
     batch_indices = list(zip(range(0, n_train - batch_size, batch_size), range(batch_size, n_train, batch_size)))
     if not is_babi:
-        kv_pairs = vectorize_kv_pairs(kv_pairs, max_sentence_size, FLAGS.mem_size, entities)
-        # kv_pairs_batch = np.repeat(kv_pairs, batch_size, axis=0)
+        # kv_pairs = vectorize_kv_pairs(kv_pairs, max_sentence_size, FLAGS.mem_size, entities)
+        FLAGS.max_memory_kv_size = 2
+        kv_pairs = vectorize_kv_pairs(kv_pairs, FLAGS.max_memory_kv_size, FLAGS.mem_size, entities)
         kv_pairs_batch = np.resize(kv_pairs, (batch_size, kv_pairs.shape[0], kv_pairs.shape[1]))
-        print('kv_pairs_batch.shape:', kv_pairs_batch.shape)
 
     with tf.Graph().as_default():
         session_conf = tf.ConfigProto(
