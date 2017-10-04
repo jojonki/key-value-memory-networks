@@ -25,9 +25,9 @@ tf.flags.DEFINE_integer("lindim", 75, "linear part of the state [75]") # TODO ?
 tf.flags.DEFINE_float("max_grad_norm", 20.0, "Clip gradients to this norm.")
 tf.flags.DEFINE_float("keep_prob", 1.0, "Keep probability for dropout")
 tf.flags.DEFINE_integer("evaluation_interval", 50, "Evaluate and print results every x epochs")
-tf.flags.DEFINE_integer("batch_size", 32, "Batch size for training.")
+tf.flags.DEFINE_integer("batch_size", 8, "Batch size for training.")
 tf.flags.DEFINE_integer("feature_size", 40, "Feature size")
-tf.flags.DEFINE_integer("n_hop", 3, "Number of hops in the Memory Network.")
+tf.flags.DEFINE_integer("n_hop", 1, "Number of hops in the Memory Network.")
 tf.flags.DEFINE_integer("n_epoch", 30, "Number of epochs to train for.")
 tf.flags.DEFINE_integer("embd_size", 100, "Embedding size for embedding matrices.")
 tf.flags.DEFINE_integer("mem_size", 20, "Maximum size of memory.")
@@ -47,14 +47,13 @@ def main(_):
     is_babi = False
     is_load_pickle = True
 
+    train_data, test_data = None, None
     entities = None # only for movie dialog
 
     if is_load_pickle:
-        train_data = load_pickle('train_data.pickle')[:1000]
-        test_data = load_pickle('test_data.pickle')[:1000]
-        kv_pairs = load_pickle('kv_pairs.pickle')
-        # k_list = np.array([kv[] for kv in kv_pairs])
-        # v_list = np.array([kv[1] for kv in kv_pairs]) # key and val is same in Sentence Level
+        train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:1000]
+        # test_data = load_pickle('mov_task1_qa_pipe_test.pickle')
+        kv_pairs = load_pickle('mov_kv_pairs.pickle')
     else:
         if is_babi:
             train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt')
@@ -63,16 +62,20 @@ def main(_):
             train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt')
             test_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_test.txt')
             entities = load_entities('./data/movie_dialog_dataset/entities.txt')
-            # save_pickle(train_data, 'train_data.pickle')
-            # save_pickle(test_data, 'test_data.pickle')
+            # save_pickle(train_data, 'mov_task1_qa_pipe_train.pickle')
+            # save_pickle(test_data, 'mov_task1_qa_pipe_test.pickle')
+            # save_pickle(entities, 'mov_entities.pickle')
 
-    data = train_data + test_data
+    # data = train_data + test_data
+    data = train_data
+    if test_data:
+        data += test_data
 
     if is_load_pickle:
-        vocab = load_pickle('vocab.pickle')
-        w2i = load_pickle('w2i.pickle')
-        i2w = load_pickle('i2w.pickle')
-        entities = load_pickle('entities.pickle')
+        vocab = load_pickle('mov_vocab.pickle')
+        w2i = load_pickle('mov_w2i.pickle')
+        i2w = load_pickle('mov_i2w.pickle')
+        entities = load_pickle('mov_entities.pickle')
     else:
         vocab = functools.reduce(lambda x, y: x | y, (set(chain(chain.from_iterable(s), q, a)) for s, q, a in data))
         w2i = dict((c, i) for i, c in enumerate(vocab, 1))
@@ -106,25 +109,29 @@ def main(_):
     FLAGS.vocab_size = vocab_size
     print('max_story_size={}\nmax_sentence_size={}\nvocab_size={}'.format(max_story_size, max_sentence_size, vocab_size))
 
-    if not is_babi:
-        kv_pairs = vectorize_kv_pairs(kv_pairs, max_sentence_size, FLAGS.mem_size, entities)
 
     S, Q, A = vectorize(data, w2i, max_sentence_size, FLAGS.mem_size, entities)
     trainS, valS, trainQ, valQ, trainA, valA = model_selection.train_test_split(S, Q, A, test_size=0.1)
-    testS, testQ, testA = vectorize(test_data, w2i, max_sentence_size, FLAGS.mem_size, entities)
+    # testS, testQ, testA = vectorize(test_data, w2i, max_sentence_size, FLAGS.mem_size, entities)
 
     n_train = trainS.shape[0]
-    n_test = testS.shape[0]
+    # n_test = testS.shape[0]
     n_valid = valS.shape[0]
-    print('train size={}\ntest size={}\nvalidation size={}'.format(n_train, n_test, n_valid))
+    print('Train size:', n_train)
+    # print('Test size:', n_test)
+    print('Valid size:', n_valid)
 
     train_labels = np.argmax(trainA, axis=1)
-    test_labels = np.argmax(testA, axis=1)
+    # test_labels = np.argmax(testA, axis=1)
     valid_labels = np.argmax(valA, axis=1)
 
     batch_size = FLAGS.batch_size
     batch_indices = list(zip(range(0, n_train - batch_size, batch_size), range(batch_size, n_train, batch_size)))
-    kv_pairs_batch = np.repeat(kv_pairs, batch_size, axis=0)
+    if not is_babi:
+        kv_pairs = vectorize_kv_pairs(kv_pairs, max_sentence_size, FLAGS.mem_size, entities)
+        # kv_pairs_batch = np.repeat(kv_pairs, batch_size, axis=0)
+        kv_pairs_batch = np.resize(kv_pairs, (batch_size, kv_pairs.shape[0], kv_pairs.shape[1]))
+        print('kv_pairs_batch.shape:', kv_pairs_batch.shape)
 
     with tf.Graph().as_default():
         session_conf = tf.ConfigProto(
@@ -194,6 +201,7 @@ def main(_):
                 np.random.shuffle(batch_indices)
                 train_preds = []
                 for start in range(0, n_train, batch_size):
+                    # if start + batch_size >= n_train: break # TODO 切り捨て
                     end = start + batch_size
                     s = trainS[start:end] # (bs, story_size, sentence_size) = (32, 10, 6)
                     q = trainQ[start:end] # (bs, sentence_size) = (32, 6)
@@ -203,7 +211,11 @@ def main(_):
                         predict_op = train_step(s, q, a)
                     else:
                         # predict_op = train_step(s, q, a, np.repeat(kv_pairs, batch_size, axis=0))
-                        predict_op = train_step(s, q, a, kv_pairs_batch)
+                        if start + batch_size < n_train:
+                            predict_op = train_step(s, q, a, kv_pairs_batch)
+                        else:
+                            predict_op = train_step(s, q, a, kv_pairs_batch[:(n_train - start)])
+
                     train_preds += list(predict_op)
                 
                 train_acc = metrics.accuracy_score(np.array(train_preds), train_labels)
@@ -217,9 +229,9 @@ def main(_):
                     print('Validation Acc: {0:.6f}'.format(val_acc))
 
             # test on train dataset
-            train_preds = test_step(trainS, trainQ)
-            train_acc = metrics.accuracy_score(train_labels, train_preds)
-            train_acc = '{0:.6f}'.format(train_acc)
+            # train_preds = test_step(trainS, trainQ)
+            # train_acc = metrics.accuracy_score(train_labels, train_preds)
+            # train_acc = '{0:.6f}'.format(train_acc)
             # eval dataset
             # val_preds = test_step(valS, valQ)
             # val_acc = metrics.accuracy_score(valid_labels, val_preds)
@@ -229,11 +241,11 @@ def main(_):
             # test_acc = metrics.accuracy_score(test_labels, test_preds)
             # test_acc = '{0:.2f}'.format(test_acc)
 
-            print('===================================')
-            print('Training Acc:', train_acc)
+            # print('===================================')
+            # print('Training Acc:', train_acc)
             # print('Validating Acc:', val_acc)
             # print('Testing Acc:', test_acc)
-            print('===================================')
+            # print('===================================')
             # with open(FLAGS.open_file, 'a') as f:
                 # f.write('{}, {}, {}, {}\n'.format(FLAGS.task_id, test_acc, train_acc, val_acc))
 
