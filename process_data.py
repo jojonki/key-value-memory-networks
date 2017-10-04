@@ -139,15 +139,16 @@ def vectorize_kv_pairs(kv_pairs, max_sentence_size, memory_size, entities):
     w2i['has_tags'] = len(w2i)
     w2i['has_plot'] = len(w2i)
     for sentence in kv_pairs:
-        pad_len = max(0, max_sentence_size - len(sentence))
-        vec_kv_pairs.append([w2i[w] for w in sentence if w in w2i] + [0] * pad_len)
+        kv = [w2i[w] for w in sentence if w in w2i]
+        pad_len = max(0, max_sentence_size - len(kv))
+        vec_kv_pairs.append(kv + [0] * pad_len)
     
     # pad to memory_size
     lm = max(0, memory_size - len(vec_kv_pairs))
     for _ in range(lm):
         vec_kv_pairs.append([0] * max_sentence_size)
 
-    return vec_kv_pairs
+    return np.array(vec_kv_pairs, dtype=np.uint16)
 
 if __name__ == '__main__':
     entities = load_pickle('entities.pickle')
