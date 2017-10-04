@@ -104,7 +104,7 @@ def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
 
 def load_kv_pairs(path, entities, is_save_pickle=False):
     """load key-value paris from KB"""
-    rel = ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'has_plot'] # TODO hard code
+    rel = ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags']#, 'has_plot'] # TODO hard code
     kv_pairs = []
     with open(path, 'r') as f:
         lines = f.readlines()
@@ -119,12 +119,13 @@ def load_kv_pairs(path, entities, is_save_pickle=False):
                     # TODO
                     k.append(tmp[0].rstrip().lower())
                     k.append(tmp[1].split(',')[0].lstrip().lower()) # TODO may not valid entity
+                    k.append(r)
                     kv_pairs.append(k)
                     break
         # kv_pairs = [l.rstrip().split(' ', 1)[1].split() for l in lines if l != '\n'] # key==value in Sentence Level
 
     if is_save_pickle:
-        save_pickle(kv_pairs, 'kv_pairs.pickle')
+        save_pickle(kv_pairs, 'mov_kv_pairs.pickle')
 
     return kv_pairs
         
@@ -137,7 +138,7 @@ def vectorize_kv_pairs(kv_pairs, max_sentence_size, memory_size, entities):
     w2i['release_year'] = len(w2i)
     w2i['has_genre'] = len(w2i)
     w2i['has_tags'] = len(w2i)
-    w2i['has_plot'] = len(w2i)
+    # w2i['has_plot'] = len(w2i)
     for sentence in kv_pairs:
         kv = [w2i[w] for w in sentence if w in w2i]
         pad_len = max(0, max_sentence_size - len(kv))
@@ -151,7 +152,7 @@ def vectorize_kv_pairs(kv_pairs, max_sentence_size, memory_size, entities):
     return np.array(vec_kv_pairs, dtype=np.uint16)
 
 if __name__ == '__main__':
-    entities = load_pickle('entities.pickle')
+    entities = load_pickle('mov_entities.pickle')
     kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities, True)
     vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
     
