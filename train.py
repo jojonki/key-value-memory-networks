@@ -10,6 +10,7 @@ from itertools import chain
 from sklearn import model_selection, metrics
 import datetime
 import pprint
+from progressbar import ProgressBar, Percentage, Bar
 
 from process_data import load_entities, load_task, vectorize, vectorize_kv_pairs, save_pickle, load_pickle, load_kv_pairs
 # from net.memn2n import MemN2N
@@ -26,7 +27,7 @@ tf.flags.DEFINE_integer("lindim", 75, "linear part of the state [75]") # TODO ?
 tf.flags.DEFINE_float("max_grad_norm", 20.0, "Clip gradients to this norm.")
 tf.flags.DEFINE_float("keep_prob", 1.0, "Keep probability for dropout")
 tf.flags.DEFINE_integer("evaluation_interval", 50, "Evaluate and print results every x epochs")
-tf.flags.DEFINE_integer("batch_size", 8, "Batch size for training.")
+tf.flags.DEFINE_integer("batch_size", 32, "Batch size for training.")
 tf.flags.DEFINE_integer("feature_size", 40, "Feature size")
 tf.flags.DEFINE_integer("n_hop", 1, "Number of hops in the Memory Network.")
 tf.flags.DEFINE_integer("n_epoch", 30, "Number of epochs to train for.")
@@ -52,8 +53,9 @@ def main(_):
     entities = None # only for movie dialog
 
     if is_load_pickle:
-        train_data = load_pickle('mov_task1_qa_pipe_train.pickle')
-        test_data = load_pickle('mov_task1_qa_pipe_test.pickle')
+        N = 50000
+        train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:N]
+        test_data = load_pickle('mov_task1_qa_pipe_test.pickle')[:N]
         kv_pairs = load_pickle('mov_kv_pairs.pickle')
         train_kv_indices = load_pickle('mov_train_kv_indices.pickle')
         test_kv_indices = load_pickle('mov_test_kv_indices.pickle')
@@ -122,6 +124,7 @@ def main(_):
     S, Q, A = vectorize(data, w2i, max_sentence_size, FLAGS.mem_size, entities)
     trainS, valS, trainQ, valQ, trainA, valA = model_selection.train_test_split(S, Q, A, test_size=0.1)
     # testS, testQ, testA = vectorize(test_data, w2i, max_sentence_size, FLAGS.mem_size, entities)
+    train_kv = train_kv[:len(trainS)]
 
     n_train = trainS.shape[0]
     # n_test = testS.shape[0]
@@ -137,12 +140,8 @@ def main(_):
     batch_size = FLAGS.batch_size
     batch_indices = list(zip(range(0, n_train - batch_size, batch_size), range(batch_size, n_train, batch_size)))
     if not is_babi:
-        # kv_pairs = vectorize_kv_pairs(kv_pairs, max_sentence_size, FLAGS.mem_size, entities)
         FLAGS.max_memory_sentence_size = 3 # TODO 3 words
-        # kv_pairs = vectorize_kv_pairs(kv_pairs, FLAGS.max_memory_sentence_size, FLAGS.mem_size, entities)
         vec_train_kv = vectorize_kv_pairs(train_kv, FLAGS.max_memory_sentence_size, FLAGS.mem_size, entities)
-        vec_train_kv = vec_train_kv[:len(trainS)]
-        # kv_pairs_batch = np.resize(kv_pairs, (batch_size, kv_pairs.shape[0], kv_pairs.shape[1]))
 
     with tf.Graph().as_default():
         session_conf = tf.ConfigProto(
@@ -209,28 +208,24 @@ def main(_):
 
             for epoch in range(1, FLAGS.n_epoch+1):
                 print(datetime.datetime.now(), ': Epoch:', epoch)
+                p = ProgressBar(max_value=n_train)
                 np.random.shuffle(batch_indices)
                 train_preds = []
                 for start in range(0, n_train, batch_size):
-                    if start + batch_size >= n_train: break # TODO 切り捨て
                     end = start + batch_size
-                    s = trainS[start:end] # (bs, story_size, sentence_size) = (32, 10, 6)
-                    q = trainQ[start:end] # (bs, sentence_size) = (32, 6)
-                    a = trainA[start:end] # (bs, vocab_size) = (32, 20)
-                    # predict_op = train_step(s, q, a)
+                    p.update(min(end, n_train))
+                    s = trainS[start:end] # (bs, story_size, sentence_size)
+                    q = trainQ[start:end] # (bs, sentence_size)
+                    a = trainA[start:end] # (bs, vocab_size)
                     if is_babi:
                         predict_op = train_step(s, q, a)
                     else:
                         kv = vec_train_kv[start:end]
-                        # predict_op = train_step(s, q, a, np.repeat(kv_pairs, batch_size, axis=0))
-                        # if start + batch_size < n_train:
                         # print('s.shape:', s.shape)
                         # print('q.shape:', q.shape)
                         # print('a.shape:', a.shape)
                         # print('kv.shape:', kv.shape)
                         predict_op = train_step(s, q, a, kv)
-                        # else:
-                        # predict_op = train_step(s, q, a, kv_pairs_batch[:(n_train - start)])
 
                     train_preds += list(predict_op)
                 
