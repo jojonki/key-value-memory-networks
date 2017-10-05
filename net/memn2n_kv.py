@@ -94,7 +94,8 @@ class MemN2N_KV(object):
         #self._wiki_sentence_size = doc_size
         self.memory_key_size = config.memory_key_size
         self.memory_value_size = config.memory_value_size
-        self.max_memory_kv_size = config.max_memory_kv_size
+        # self.max_memory_kv_size = config.max_memory_kv_size
+        self.max_memory_sentence_size = config.max_memory_sentence_size
         self.embd_size = config.embd_size
         self.n_hop = config.n_hop
         self.name = name
@@ -200,8 +201,8 @@ class MemN2N_KV(object):
                 self.memory_value = tf.placeholder(tf.int32, [None, self.memory_value_size, self.sentence_size], name='memory_value')
                 self.labels = tf.placeholder(tf.float32, [None, self.vocab_size], name='answer')
             else:
-                self.memory_key = tf.placeholder(tf.int32, [None, self.memory_key_size, self.max_memory_kv_size], name='memory_key')
-                self.memory_value = tf.placeholder(tf.int32, [None, self.memory_value_size, self.max_memory_kv_size], name='memory_value')
+                self.memory_key = tf.placeholder(tf.int32, [None, self.memory_key_size, self.max_memory_sentence_size], name='memory_key')
+                self.memory_value = tf.placeholder(tf.int32, [None, self.memory_value_size, self.max_memory_sentence_size], name='memory_value')
                 self.labels = tf.placeholder(tf.float32, [None, self.n_entity], name='answer')
 
             self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')

@@ -51,9 +51,13 @@ def main(_):
     entities = None # only for movie dialog
 
     if is_load_pickle:
-        train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:5000]
-        # test_data = load_pickle('mov_task1_qa_pipe_test.pickle')
-        kv_pairs = load_pickle('mov_kv_pairs.pickle')[:60000]
+        train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:500]
+        test_data = load_pickle('mov_task1_qa_pipe_test.pickle')
+        kv_pairs = load_pickle('mov_kv_pairs.pickle')
+        train_kv_indices = load_pickle('mov_train_kv_indices.pickle')
+        test_kv_indices = load_pickle('mov_test_kv_indices.pickle')
+        train_kv = [ [kv_pairs[ind] for ind in indices] for indices in train_kv_indices ]
+        test_kv = [ [kv_pairs[ind] for ind in indices] for indices in test_kv_indices ]
     else:
         if is_babi:
             train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt')
@@ -97,11 +101,15 @@ def main(_):
     question_size = max(map(len, chain.from_iterable(q for _, q, _ in data)))
     max_sentence_size = max(sentence_size, question_size)
     vocab_size = len(w2i) + 1 # +1 for nil word
+    max_mem_story_size = max(map(len, (kv for kv in train_kv + test_kv))) # how many memory contains in max?
 
     FLAGS.story_size = max_story_size
-    FLAGS.mem_size = min(FLAGS.mem_size, max_story_size + 1) # avoid memory_size == 0
+    # FLAGS.mem_size = min(FLAGS.mem_size, max_story_size + 1) # avoid memory_size == 0
+    FLAGS.mem_size = min(1, max_story_size) # avoid memory_size == 0
     if not is_babi:
-        FLAGS.mem_size = len(kv_pairs)
+        # FLAGS.mem_size = len(kv_pairs)
+        FLAGS.mem_size = max_mem_story_size ####
+        print('max_mem_size', max_mem_story_size)
     FLAGS.query_size = max_sentence_size
     FLAGS.sentence_size = max_sentence_size
     FLAGS.memory_key_size = FLAGS.mem_size
@@ -129,9 +137,10 @@ def main(_):
     batch_indices = list(zip(range(0, n_train - batch_size, batch_size), range(batch_size, n_train, batch_size)))
     if not is_babi:
         # kv_pairs = vectorize_kv_pairs(kv_pairs, max_sentence_size, FLAGS.mem_size, entities)
-        FLAGS.max_memory_kv_size = 3 # TODO
-        kv_pairs = vectorize_kv_pairs(kv_pairs, FLAGS.max_memory_kv_size, FLAGS.mem_size, entities)
-        kv_pairs_batch = np.resize(kv_pairs, (batch_size, kv_pairs.shape[0], kv_pairs.shape[1]))
+        FLAGS.max_memory_sentence_size = 3 # TODO 3 words
+        # kv_pairs = vectorize_kv_pairs(kv_pairs, FLAGS.max_memory_sentence_size, FLAGS.mem_size, entities)
+        vec_train_kv = vectorize_kv_pairs(train_kv, FLAGS.max_memory_sentence_size, FLAGS.mem_size, entities)
+        # kv_pairs_batch = np.resize(kv_pairs, (batch_size, kv_pairs.shape[0], kv_pairs.shape[1]))
 
     with tf.Graph().as_default():
         session_conf = tf.ConfigProto(
@@ -210,11 +219,12 @@ def main(_):
                     if is_babi:
                         predict_op = train_step(s, q, a)
                     else:
+                        kv = vec_train_kv[start:end]
                         # predict_op = train_step(s, q, a, np.repeat(kv_pairs, batch_size, axis=0))
-                        if start + batch_size < n_train:
-                            predict_op = train_step(s, q, a, kv_pairs_batch)
-                        else:
-                            predict_op = train_step(s, q, a, kv_pairs_batch[:(n_train - start)])
+                        # if start + batch_size < n_train:
+                        predict_op = train_step(s, q, a, kv)
+                        # else:
+                            # predict_op = train_step(s, q, a, kv_pairs_batch[:(n_train - start)])
 
                     train_preds += list(predict_op)
                 

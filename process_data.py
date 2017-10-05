@@ -97,7 +97,8 @@ def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
         A.append(y)
     
     S = np.array(S, dtype=np.uint16)
-    Q = np.array(Q, dtype=np.uint16)
+    # Q = np.array(Q, dtype=np.uint16) # TODO: ValueError: setting an array element with a sequence.
+    Q = np.array(Q)
     A = np.array(A, dtype='byte')
 
     return S, Q, A
@@ -139,10 +140,12 @@ def vectorize_kv_pairs(kv_pairs, max_sentence_size, memory_size, entities):
     w2i['has_genre'] = len(w2i)
     w2i['has_tags'] = len(w2i)
     # w2i['has_plot'] = len(w2i)
-    for sentence in kv_pairs:
-        kv = [w2i[w] for w in sentence if w in w2i]
-        pad_len = max(0, max_sentence_size - len(kv))
-        vec_kv_pairs.append(kv + [0] * pad_len)
+    for kv_list in kv_pairs:
+        for sentence in kv_list:
+#             print(sentence)
+            kv = [w2i[w] for w in sentence if w in w2i]
+            pad_len = max(0, max_sentence_size - len(kv))
+            vec_kv_pairs.append(kv + [0] * pad_len)
     
     # pad to memory_size
     lm = max(0, memory_size - len(vec_kv_pairs))
@@ -176,6 +179,7 @@ if __name__ == '__main__':
     # kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities, True)
     # vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
 
+    # for stopwords
     get_stop_words(1000, True)
     
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
