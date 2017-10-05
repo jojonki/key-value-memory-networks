@@ -52,7 +52,7 @@ def main(_):
 
     if is_load_pickle:
         train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:500]
-        test_data = load_pickle('mov_task1_qa_pipe_test.pickle')
+        test_data = load_pickle('mov_task1_qa_pipe_test.pickle')[:500]
         kv_pairs = load_pickle('mov_kv_pairs.pickle')
         train_kv_indices = load_pickle('mov_train_kv_indices.pickle')
         test_kv_indices = load_pickle('mov_test_kv_indices.pickle')
@@ -70,8 +70,8 @@ def main(_):
             # save_pickle(test_data, 'mov_task1_qa_pipe_test.pickle')
             # save_pickle(entities, 'mov_entities.pickle')
 
-    # data = train_data + test_data
-    data = train_data
+    data = train_data + test_data
+    # data = train_data
     if test_data:
         data += test_data
 
@@ -140,6 +140,7 @@ def main(_):
         FLAGS.max_memory_sentence_size = 3 # TODO 3 words
         # kv_pairs = vectorize_kv_pairs(kv_pairs, FLAGS.max_memory_sentence_size, FLAGS.mem_size, entities)
         vec_train_kv = vectorize_kv_pairs(train_kv, FLAGS.max_memory_sentence_size, FLAGS.mem_size, entities)
+        vec_train_kv = vec_train_kv[:len(trainS)]
         # kv_pairs_batch = np.resize(kv_pairs, (batch_size, kv_pairs.shape[0], kv_pairs.shape[1]))
 
     with tf.Graph().as_default():
@@ -222,9 +223,13 @@ def main(_):
                         kv = vec_train_kv[start:end]
                         # predict_op = train_step(s, q, a, np.repeat(kv_pairs, batch_size, axis=0))
                         # if start + batch_size < n_train:
+                        print('s.shape:', s.shape)
+                        print('q.shape:', q.shape)
+                        print('a.shape:', a.shape)
+                        print('kv.shape:', kv.shape)
                         predict_op = train_step(s, q, a, kv)
                         # else:
-                            # predict_op = train_step(s, q, a, kv_pairs_batch[:(n_train - start)])
+                        # predict_op = train_step(s, q, a, kv_pairs_batch[:(n_train - start)])
 
                     train_preds += list(predict_op)
                 

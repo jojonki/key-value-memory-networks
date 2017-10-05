@@ -97,8 +97,7 @@ def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
         A.append(y)
     
     S = np.array(S, dtype=np.uint16)
-    # Q = np.array(Q, dtype=np.uint16) # TODO: ValueError: setting an array element with a sequence.
-    Q = np.array(Q)
+    Q = np.array(Q, dtype=np.uint16)
     A = np.array(A, dtype='byte')
 
     return S, Q, A
@@ -141,16 +140,19 @@ def vectorize_kv_pairs(kv_pairs, max_sentence_size, memory_size, entities):
     w2i['has_tags'] = len(w2i)
     # w2i['has_plot'] = len(w2i)
     for kv_list in kv_pairs:
+        vec_kv = []
         for sentence in kv_list:
 #             print(sentence)
             kv = [w2i[w] for w in sentence if w in w2i]
             pad_len = max(0, max_sentence_size - len(kv))
-            vec_kv_pairs.append(kv + [0] * pad_len)
+            vec_kv.append(kv + [0] * pad_len)
     
-    # pad to memory_size
-    lm = max(0, memory_size - len(vec_kv_pairs))
-    for _ in range(lm):
-        vec_kv_pairs.append([0] * max_sentence_size)
+        # pad to memory_size
+        lm = max(0, memory_size - len(vec_kv))
+        for _ in range(lm):
+            vec_kv.append([0] * max_sentence_size)
+
+        vec_kv_pairs.append(vec_kv)
 
     return np.array(vec_kv_pairs, dtype=np.uint16)
 
