@@ -1,4 +1,4 @@
-# -*- coding: utf-8
+# -*- coding: utf-8 -*-
 
 import pickle
 from nltk.tokenize import word_tokenize
@@ -26,7 +26,7 @@ def load_entities(path):
         return [e.lower().rstrip() for e in lines]
 
 def load_task(fpath):
-    with open (fpath) as f:
+    with open (fpath, encoding='utf-8') as f:
         lines = f.readlines()
         data, story = [], []
         for l in lines:
@@ -151,10 +151,32 @@ def vectorize_kv_pairs(kv_pairs, max_sentence_size, memory_size, entities):
 
     return np.array(vec_kv_pairs, dtype=np.uint16)
 
+def get_stop_words(freq, is_save_pickle):
+    train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt')
+    test_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_test.txt')
+    dev_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_dev.txt')
+    data = train_data + test_data + dev_data
+    bow = {}
+    for _, q, _ in data:
+        for qq in q:
+            for w in qq.split(' '):
+                if w not in bow:
+                    bow[w] = 0
+                else:
+                    bow[w] += 1
+
+    stopwords = [k for k, v in bow.items() if v >= freq]
+    if is_save_pickle:
+        save_pickle(stopwords, 'mov_stopwords.pickle')
+    
+
+
 if __name__ == '__main__':
-    entities = load_pickle('mov_entities.pickle')
-    kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities, True)
-    vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
+    # entities = load_pickle('mov_entities.pickle')
+    # kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities, True)
+    # vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
+
+    get_stop_words(1000, True)
     
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
     # data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')
