@@ -8,6 +8,7 @@ import numpy as np
 import functools
 from itertools import chain
 from sklearn import model_selection, metrics
+import datetime
 import pprint
 
 from process_data import load_entities, load_task, vectorize, vectorize_kv_pairs, save_pickle, load_pickle, load_kv_pairs
@@ -51,8 +52,8 @@ def main(_):
     entities = None # only for movie dialog
 
     if is_load_pickle:
-        train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:500]
-        test_data = load_pickle('mov_task1_qa_pipe_test.pickle')[:500]
+        train_data = load_pickle('mov_task1_qa_pipe_train.pickle')
+        test_data = load_pickle('mov_task1_qa_pipe_test.pickle')
         kv_pairs = load_pickle('mov_kv_pairs.pickle')
         train_kv_indices = load_pickle('mov_train_kv_indices.pickle')
         test_kv_indices = load_pickle('mov_test_kv_indices.pickle')
@@ -207,11 +208,11 @@ def main(_):
                 return predicts
 
             for epoch in range(1, FLAGS.n_epoch+1):
-                print('Epoch', epoch)
+                print(datetime.datetime.now(), ': Epoch:', epoch)
                 np.random.shuffle(batch_indices)
                 train_preds = []
                 for start in range(0, n_train, batch_size):
-                    # if start + batch_size >= n_train: break # TODO 切り捨て
+                    if start + batch_size >= n_train: break # TODO 切り捨て
                     end = start + batch_size
                     s = trainS[start:end] # (bs, story_size, sentence_size) = (32, 10, 6)
                     q = trainQ[start:end] # (bs, sentence_size) = (32, 6)
@@ -223,10 +224,10 @@ def main(_):
                         kv = vec_train_kv[start:end]
                         # predict_op = train_step(s, q, a, np.repeat(kv_pairs, batch_size, axis=0))
                         # if start + batch_size < n_train:
-                        print('s.shape:', s.shape)
-                        print('q.shape:', q.shape)
-                        print('a.shape:', a.shape)
-                        print('kv.shape:', kv.shape)
+                        # print('s.shape:', s.shape)
+                        # print('q.shape:', q.shape)
+                        # print('a.shape:', a.shape)
+                        # print('kv.shape:', kv.shape)
                         predict_op = train_step(s, q, a, kv)
                         # else:
                         # predict_op = train_step(s, q, a, kv_pairs_batch[:(n_train - start)])
