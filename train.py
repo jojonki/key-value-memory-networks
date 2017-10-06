@@ -29,7 +29,7 @@ tf.flags.DEFINE_float("keep_prob", 1.0, "Keep probability for dropout")
 tf.flags.DEFINE_integer("evaluation_interval", 50, "Evaluate and print results every x epochs")
 tf.flags.DEFINE_integer("batch_size", 32, "Batch size for training.")
 tf.flags.DEFINE_integer("feature_size", 40, "Feature size")
-tf.flags.DEFINE_integer("n_hop", 1, "Number of hops in the Memory Network.")
+tf.flags.DEFINE_integer("n_hop", 3, "Number of hops in the Memory Network.")
 tf.flags.DEFINE_integer("n_epoch", 30, "Number of epochs to train for.")
 tf.flags.DEFINE_integer("embd_size", 100, "Embedding size for embedding matrices.")
 tf.flags.DEFINE_integer("mem_size", 20, "Maximum size of memory.")
@@ -46,8 +46,8 @@ tf.flags.DEFINE_string("checkpoint_dir", "checkpoints", "checkpoint directory [c
 FLAGS = tf.flags.FLAGS
 
 def main(_):
-    is_babi = False
-    is_load_pickle = True
+    is_babi = True
+    is_load_pickle = False
 
     train_data, test_data = None, None
     entities = None # only for movie dialog
@@ -65,6 +65,8 @@ def main(_):
         if is_babi:
             train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt')
             test_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')
+            # train_data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_train.txt')
+            # test_data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
         else: # movie qa
             train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt')
             test_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_test.txt')
@@ -74,9 +76,6 @@ def main(_):
             # save_pickle(entities, 'mov_entities.pickle')
 
     data = train_data + test_data
-    # data = train_data
-    if test_data:
-        data += test_data
 
     if is_load_pickle:
         vocab = load_pickle('mov_vocab.pickle')
@@ -104,13 +103,14 @@ def main(_):
     question_size = max(map(len, chain.from_iterable(q for _, q, _ in data)))
     max_sentence_size = max(sentence_size, question_size)
     vocab_size = len(w2i) + 1 # +1 for nil word
-    max_mem_story_size = max(map(len, (kv for kv in train_kv + test_kv))) # how many memory contains in max?
 
+    # max_story_size = 102
     FLAGS.story_size = max_story_size
-    # FLAGS.mem_size = min(FLAGS.mem_size, max_story_size + 1) # avoid memory_size == 0
-    FLAGS.mem_size = min(1, max_story_size) # avoid memory_size == 0
+    FLAGS.mem_size = min(FLAGS.mem_size, max_story_size + 1) # avoid memory_size == 0
+    # FLAGS.mem_size = min(1, max_story_size) # avoid memory_size == 0
     if not is_babi:
         # FLAGS.mem_size = len(kv_pairs)
+        max_mem_story_size = max(map(len, (kv for kv in train_kv + test_kv))) # how many memory contains in max?
         FLAGS.mem_size = max_mem_story_size ####
         print('max_mem_size', max_mem_story_size)
     FLAGS.query_size = max_sentence_size
@@ -124,7 +124,8 @@ def main(_):
     S, Q, A = vectorize(data, w2i, max_sentence_size, FLAGS.mem_size, entities)
     trainS, valS, trainQ, valQ, trainA, valA = model_selection.train_test_split(S, Q, A, test_size=0.1)
     # testS, testQ, testA = vectorize(test_data, w2i, max_sentence_size, FLAGS.mem_size, entities)
-    train_kv = train_kv[:len(trainS)]
+    if not is_babi:
+        train_kv = train_kv[:len(trainS)]
 
     n_train = trainS.shape[0]
     # n_test = testS.shape[0]
@@ -140,8 +141,11 @@ def main(_):
     batch_size = FLAGS.batch_size
     batch_indices = list(zip(range(0, n_train - batch_size, batch_size), range(batch_size, n_train, batch_size)))
     if not is_babi:
-        FLAGS.max_memory_sentence_size = 3 # TODO 3 words
-        vec_train_kv = vectorize_kv_pairs(train_kv, FLAGS.max_memory_sentence_size, FLAGS.mem_size, entities)
+        FLAGS.max_memory_sentence_size = max(list(map(len, chain.from_iterable(kv for kv in (train_kv+test_kv)))))
+        # print("----max_memory_sentence_size", FLAGS.max_meory_sentence_size)
+        # FLAGS.max_memory_sentence_size = 3 # TODO 3 words
+        # vec_train_kv = vectorize_kv_pairs(train_kv, FLAGS.max_memory_sentence_size, FLAGS.mem_size, entities)
+        vec_train_kv = vectorize_kv_pairs(train_kv, FLAGS.max_memory_sentence_size, FLAGS.mem_size, vocab)
 
     with tf.Graph().as_default():
         session_conf = tf.ConfigProto(

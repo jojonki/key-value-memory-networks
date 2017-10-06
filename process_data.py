@@ -81,6 +81,7 @@ def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
         # Vectroize question
         q_pad_len = max(0, max_sentence_size - len(question))
         q = [w2i[w] for w in question] + [0] * q_pad_len
+        # q = q[:max_sentence_size]
 
         # Vectroize answer
         if entities:
@@ -102,7 +103,7 @@ def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
 
     return S, Q, A
 
-def load_kv_pairs(path, entities, is_save_pickle=False):
+def load_kv_pairs(path, is_save_pickle=False):
     """load key-value paris from KB"""
     rel = ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags']#, 'has_plot'] # TODO hard code
     kv_pairs = []
@@ -118,8 +119,9 @@ def load_kv_pairs(path, entities, is_save_pickle=False):
                     tmp = left.split(r)
                     # TODO
                     k.append(tmp[0].rstrip().lower())
-                    k.append(tmp[1].split(',')[0].lstrip().lower()) # TODO may not valid entity
                     k.append(r)
+                    # k.append(tmp[1].split(',')[0].lstrip().lower()) # TODO may not valid entity
+                    k += word_tokenize(tmp[1].rstrip().lower())
                     kv_pairs.append(k)
                     break
         # kv_pairs = [l.rstrip().split(' ', 1)[1].split() for l in lines if l != '\n'] # key==value in Sentence Level
@@ -178,11 +180,13 @@ def get_stop_words(freq, is_save_pickle):
 
 if __name__ == '__main__':
     # entities = load_pickle('mov_entities.pickle')
-    # kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities, True)
+    
+    # generate kv_pairs
+    kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', True)
     # vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
 
-    # for stopwords
-    get_stop_words(1000, True)
+    # generate stopwords
+    # get_stop_words(1000, True)
     
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
     # data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')

@@ -95,7 +95,8 @@ class MemN2N_KV(object):
         self.memory_key_size = config.memory_key_size
         self.memory_value_size = config.memory_value_size
         # self.max_memory_kv_size = config.max_memory_kv_size
-        self.max_memory_sentence_size = config.max_memory_sentence_size
+        if not is_babi:
+            self.max_memory_sentence_size = config.max_memory_sentence_size
         self.embd_size = config.embd_size
         self.n_hop = config.n_hop
         self.name = name
@@ -135,7 +136,7 @@ class MemN2N_KV(object):
                 self.W_memory = tf.concat([nil_word_slot, tf.get_variable('W_memory', shape=[self.vocab_size-1, self.embd_size],
                                                                          initializer=tf.contrib.layers.xavier_initializer())], 0)
             else:
-                self.W_memory = tf.concat([nil_word_slot, tf.get_variable('W_memory2', shape=[self.n_entity-1, self.embd_size],
+                self.W_memory = tf.concat([nil_word_slot, tf.get_variable('W_memory', shape=[self.n_entity-1, self.embd_size],
                                                                          initializer=tf.contrib.layers.xavier_initializer())], 0)
             # self.W_memory = self.W
             self._nil_vars = set([self.W.name, self.W_memory.name])
