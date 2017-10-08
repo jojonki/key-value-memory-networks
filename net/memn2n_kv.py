@@ -53,7 +53,7 @@ def zero_nil_slot(t, name=None):
 
 class MemN2N_KV(object):
     """Key Value Memory Network."""
-    def __init__(self, config, is_babi, feature_size=30, reader='bow', l2_lambda=0.2, name='KeyValueM2mN2N'): # TODO: feature_size
+    def __init__(self, config, is_babi, feature_size=500, reader='bow', l2_lambda=0.2, name='KeyValueM2mN2N'): # TODO: feature_size
         # batch_size, vocab_size,
         #              query_size, story_size, memory_key_size,
         #              memory_value_size, embedding_size,
