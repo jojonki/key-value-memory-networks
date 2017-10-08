@@ -167,9 +167,9 @@ class MemN2N_KV(object):
         o = self._key_addressing(doc_r, value_r, q_r, r_list)
         o = tf.transpose(o)
         if reader == 'bow':
-            self.B = self.A
-            #self.B = tf.get_variable('B', shape=[self._feature_size, self.reader_feature_size],
-            #                         initializer=tf.contrib.layers.xavier_initializer())
+            # self.B = self.A
+            self.B = tf.get_variable('B', shape=[self.feature_size, self.reader_feature_size],
+                                    initializer=tf.contrib.layers.xavier_initializer())
         
         #logits_bias = tf.get_variable('logits_bias', [self.vocab_size])
         y_tmp = tf.matmul(self.B, self.W_memory, transpose_b=True)
@@ -178,7 +178,8 @@ class MemN2N_KV(object):
             #logits = tf.nn.dropout(tf.matmul(o, self.B) + logits_bias, self.keep_prob)
             probs = tf.nn.softmax(tf.cast(logits, tf.float32))
             
-            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=tf.cast(self.labels, tf.float32), name='cross_entropy')
+            # cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=tf.cast(self.labels, tf.float32), name='cross_entropy')
+            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=self.labels, name='cross_entropy')
             cross_entropy_sum = tf.reduce_sum(cross_entropy, name="cross_entropy_sum")
 
             # loss op

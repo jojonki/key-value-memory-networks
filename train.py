@@ -40,20 +40,22 @@ tf.flags.DEFINE_boolean("allow_soft_placement", True, "automatically choose an e
 tf.flags.DEFINE_boolean("log_device_placement", False, "To find out which devices your operations and tensors are assigned to")
 tf.flags.DEFINE_string("output_file", "single_scores.csv", "Name of output file for final bAbI accuracy scores.")
 tf.flags.DEFINE_boolean("is_test", False, "True for testing, False for Training [False]")
+tf.flags.DEFINE_boolean("is_babi", False, "babi or movie qa")
+tf.flags.DEFINE_boolean("is_load_pickle", True, "load pickle for data")
 tf.flags.DEFINE_boolean("show", False, "print progress [False]")
 tf.flags.DEFINE_string("checkpoint_dir", "checkpoints", "checkpoint directory [checkpoints]")
 
 FLAGS = tf.flags.FLAGS
 
 def main(_):
-    is_babi = True
-    is_load_pickle = False
+    is_babi = FLAGS.is_babi
+    is_load_pickle = FLAGS.is_load_pickle
 
     train_data, test_data = None, None
     entities = None # only for movie dialog
 
     if is_load_pickle:
-        N = 50000
+        N = 5000000
         train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:N]
         test_data = load_pickle('mov_task1_qa_pipe_test.pickle')[:N]
         kv_pairs = load_pickle('mov_kv_pairs.pickle')
@@ -94,7 +96,6 @@ def main(_):
     else:
         FLAGS.n_entity = len(entities)
 
-    max_story_size = max(map(len, (s for s, _, _ in data)))
     len_list = list(map(len, chain.from_iterable(s for s, _, _ in data)))
     if len(len_list) != 0:
         sentence_size = max(len_list)
@@ -104,7 +105,7 @@ def main(_):
     max_sentence_size = max(sentence_size, question_size)
     vocab_size = len(w2i) + 1 # +1 for nil word
 
-    # max_story_size = 102
+    max_story_size = max(map(len, (s for s, _, _ in data)))
     FLAGS.story_size = max_story_size
     FLAGS.mem_size = min(FLAGS.mem_size, max_story_size + 1) # avoid memory_size == 0
     # FLAGS.mem_size = min(1, max_story_size) # avoid memory_size == 0

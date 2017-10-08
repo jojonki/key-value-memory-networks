@@ -120,8 +120,8 @@ def load_kv_pairs(path, is_save_pickle=False):
                     # TODO
                     k.append(tmp[0].rstrip().lower())
                     k.append(r)
-                    # k.append(tmp[1].split(',')[0].lstrip().lower()) # TODO may not valid entity
-                    k += word_tokenize(tmp[1].rstrip().lower())
+                    # k += word_tokenize(tmp[1].rstrip().lower())
+                    k += tmp[1].strip().lower().split(', ')
                     kv_pairs.append(k)
                     break
         # kv_pairs = [l.rstrip().split(' ', 1)[1].split() for l in lines if l != '\n'] # key==value in Sentence Level
@@ -157,6 +157,20 @@ def vectorize_kv_pairs(kv_pairs, max_sentence_size, memory_size, entities):
         vec_kv_pairs.append(vec_kv)
 
     return np.array(vec_kv_pairs, dtype=np.uint16)
+
+def get_kv_indices(data, kv_pairs):
+    kv_indices = []
+    for i, (_, q, _) in enumerate(train_data):
+        if i%100 == 0: print(i, '/', len(train_data))
+        ind = []
+        question = ' '.join(q)
+        for j, kv in enumerate(kv_pairs):
+            for ent in kv:
+                if ent in question:
+                    ind.append(j)
+                    break
+        kv_indices.append(ind)
+    return kv_indices
 
 def get_stop_words(freq, is_save_pickle):
     train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt')
