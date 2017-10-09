@@ -55,14 +55,15 @@ def main(_):
     entities = None # only for movie dialog
 
     if is_load_pickle:
-        N = 5000000
+        N = 5000
         train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:N]
         test_data = load_pickle('mov_task1_qa_pipe_test.pickle')[:N]
         kv_pairs = load_pickle('mov_kv_pairs.pickle')
-        train_kv_indices = load_pickle('mov_train_kv_indices.pickle')
-        test_kv_indices = load_pickle('mov_test_kv_indices.pickle')
+        train_kv_indices = load_pickle('mov_train_kv_indices.pickle')[:N]
+        # test_kv_indices = load_pickle('mov_test_kv_indices.pickle')[:N]
         train_kv = [ [kv_pairs[ind] for ind in indices] for indices in train_kv_indices ]
-        test_kv = [ [kv_pairs[ind] for ind in indices] for indices in test_kv_indices ]
+        # test_kv = [ [kv_pairs[ind] for ind in indices] for indices in test_kv_indices ]
+        test_kv = []
     else:
         if is_babi:
             train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt')
@@ -77,7 +78,8 @@ def main(_):
             # save_pickle(test_data, 'mov_task1_qa_pipe_test.pickle')
             # save_pickle(entities, 'mov_entities.pickle')
 
-    data = train_data + test_data
+    # data = train_data + test_data
+    data = train_data
 
     if is_load_pickle:
         vocab = load_pickle('mov_vocab.pickle')
@@ -126,21 +128,22 @@ def main(_):
 
 
     S, Q, A = vectorize(data, w2i, max_sentence_size, FLAGS.mem_size, entities)
-    trainS, valS, trainQ, valQ, trainA, valA = model_selection.train_test_split(S, Q, A, test_size=0.1)
+    # trainS, valS, trainQ, valQ, trainA, valA = model_selection.train_test_split(S, Q, A, test_size=0.1)
+    trainS, trainQ, trainA = S, Q, A
     # testS, testQ, testA = vectorize(test_data, w2i, max_sentence_size, FLAGS.mem_size, entities)
     if not is_babi:
         train_kv = train_kv[:len(trainS)]
 
     n_train = trainS.shape[0]
     # n_test = testS.shape[0]
-    n_valid = valS.shape[0]
+    # n_valid = valS.shape[0]
     print('Train size:', n_train)
     # print('Test size:', n_test)
-    print('Valid size:', n_valid)
+    # print('Valid size:', n_valid)
 
     train_labels = np.argmax(trainA, axis=1)
     # test_labels = np.argmax(testA, axis=1)
-    valid_labels = np.argmax(valA, axis=1)
+    # valid_labels = np.argmax(valA, axis=1)
 
     batch_size = FLAGS.batch_size
     batch_indices = list(zip(range(0, n_train - batch_size, batch_size), range(batch_size, n_train, batch_size)))
