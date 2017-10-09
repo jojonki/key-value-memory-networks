@@ -138,6 +138,10 @@ class MemN2N_KV(object):
             else:
                 self.W_memory = tf.concat([nil_word_slot, tf.get_variable('W_memory', shape=[self.n_entity-1, self.embd_size],
                                                                          initializer=tf.contrib.layers.xavier_initializer())], 0)
+                # self.W_2 = tf.get_variable('W_2', shape=[self.n_entity, self.n_entity],
+                                                                         # initializer=tf.contrib.layers.xavier_initializer())
+                # self.identity_mat = tf.diag(tf.ones(shape=[self.n_entity]))
+
             # self.W_memory = self.W
             self._nil_vars = set([self.W.name, self.W_memory.name])
             # shape: [batch_size, query_size, embedding_size]
@@ -147,15 +151,18 @@ class MemN2N_KV(object):
             # shape: [batch_size, memory_size, story_size, embedding_size]
             self.mvalues_embedded_chars = tf.nn.embedding_lookup(self.W_memory, self.memory_value)
 
+            # self.embedded_labels = tf.nn.embedding_lookup(self.W_memory, self.labels) # shape: [batch_size, n_entity, feature_size]
+            # print("----embedded_labels.shape", self.embedded_labels.shape)
+
         if reader == 'bow':
             if is_babi:
-                q_r = tf.reduce_sum(self.embedded_chars*self.encoding, 1) 
+                q_r = tf.reduce_sum(self.embedded_chars*self.encoding, 1)
                 doc_r = tf.reduce_sum(self.mkeys_embedded_chars*self.encoding, 2)
                 value_r = tf.reduce_sum(self.mvalues_embedded_chars*self.encoding, 2)
             else:
-                q_r = tf.reduce_sum(self.embedded_chars, 1) 
-                doc_r = tf.reduce_sum(self.mkeys_embedded_chars, 2)
-                value_r = tf.reduce_sum(self.mvalues_embedded_chars, 2)
+                q_r = tf.reduce_sum(self.embedded_chars, 1)  # shape; [batch_size, feature_size]
+                doc_r = tf.reduce_sum(self.mkeys_embedded_chars, 2) # shape: [batch_size, mem_size, feature_size]
+                value_r = tf.reduce_sum(self.mvalues_embedded_chars, 2) # shape: [batch_size, mem_size, feature_size]
 
         r_list = []
         for _ in range(self.n_hop):
@@ -168,12 +175,24 @@ class MemN2N_KV(object):
         o = tf.transpose(o)
         if reader == 'bow':
             # self.B = self.A
-            self.B = tf.get_variable('B', shape=[self.feature_size, self.reader_feature_size],
+            # self.B = tf.get_variable('B', shape=[self.feature_size, self.reader_feature_size],
+                                    # initializer=tf.contrib.layers.xavier_initializer())
+            self.B = tf.get_variable('B', shape=[self.feature_size, self.n_entity],
                                     initializer=tf.contrib.layers.xavier_initializer())
+            self.y_data = np.zeros((self.n_entity, self.n_entity), dtype=np.float32)
+            for i in range(self.n_entity):
+                self.y_data[i][i] = 1
         
         #logits_bias = tf.get_variable('logits_bias', [self.vocab_size])
-        y_tmp = tf.matmul(self.B, self.W_memory, transpose_b=True)
+        # y_tmp = tf.matmul(self.B, self.W_memory, transpose_b=True) # shape: [feature_size, n_entity]
+        # y_tmp = tf.matmul(self.B, self.identity_mat) # shape: [feature_size, n_entity]
+        y_tmp = tf.matmul(self.B, self.y_data) # shape: [feature_size, n_entity]
         with tf.name_scope("prediction"):
+            print('B.shape=', self.B.shape)
+            print('self.labels.shape', self.labels.shape)
+            print('W_memory.shape=', self.W_memory.shape)
+            print('o.shape=', o.shape)
+            print('y_tmp.shape=', y_tmp.shape)
             logits = tf.matmul(o, y_tmp)# + logits_bias
             #logits = tf.nn.dropout(tf.matmul(o, self.B) + logits_bias, self.keep_prob)
             probs = tf.nn.softmax(tf.cast(logits, tf.float32))
@@ -205,7 +224,8 @@ class MemN2N_KV(object):
             else:
                 self.memory_key = tf.placeholder(tf.int32, [None, self.memory_key_size, self.max_memory_sentence_size], name='memory_key')
                 self.memory_value = tf.placeholder(tf.int32, [None, self.memory_value_size, self.max_memory_sentence_size], name='memory_value')
-                self.labels = tf.placeholder(tf.float32, [None, self.n_entity], name='answer')
+                # self.labels = tf.placeholder(tf.float32, [None, self.n_entity], name='answer')
+                self.labels = tf.placeholder(tf.int32, [None, self.n_entity], name='answer')
 
             self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
