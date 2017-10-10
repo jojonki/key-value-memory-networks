@@ -26,7 +26,43 @@ def load_entities(path):
         entities = [e.lower().rstrip() for e in lines]
         return list(set(entities))
 
-def load_task(fpath):
+def find_ngrams(token_dict, text, n):
+    """ See: https://github.com/facebookresearch/ParlAI/blob/master/parlai/core/dict.py#L31
+        token_dict:  {'hello world', 'ol boy'}
+        text: ['hello', 'world', 'buddy', 'ol', 'boy']
+        n: max n of n-gram
+        ret: ['hello world', 'buddy', 'ol boy']
+    """
+    """Breaks text into ngrams that appear in ``token_dict``."""
+    # base case
+    if n <= 1:
+        return text
+    # tokens committed to output
+    saved_tokens = []
+    # tokens remaining to be searched in sentence
+    search_tokens = text[:]
+    # tokens stored until next ngram found
+    next_search = []
+    while len(search_tokens) >= n:
+        ngram = ' '.join(search_tokens[:n])
+        if ngram in token_dict:
+            # first, search previous unmatched words for smaller ngrams
+            sub_n = min(len(next_search), n - 1)
+            saved_tokens.extend(find_ngrams(token_dict, next_search, sub_n))
+            next_search.clear()
+            # then add this ngram
+            saved_tokens.append(ngram)
+            # then pop this ngram from the remaining words to search
+            search_tokens = search_tokens[n:]
+        else:
+            next_search.append(search_tokens.pop(0))
+    remainder = next_search + search_tokens
+    sub_n = min(len(remainder), n - 1)
+    saved_tokens.extend(find_ngrams(token_dict, remainder, sub_n))
+    return saved_tokens
+
+def load_task(fpath, token_dict=None, max_token_length=None):
+    print('load', fpath)
     with open (fpath, encoding='utf-8') as f:
         lines = f.readlines()
         data, story = [], []
@@ -43,6 +79,9 @@ def load_task(fpath):
                 q = lower_list(q)
                 if q[-1] == '?':
                     q = q[:-1]
+                if token_dict and max_token_length:
+                    q = find_ngrams(token_dict, q, max_token_length)
+
                 if '\t' in a:
                     a = a.split('\t')[0] # discard reward
                 a = a.split('|') # may contain several labels
@@ -194,10 +233,24 @@ def get_stop_words(freq, is_save_pickle):
 
 
 if __name__ == '__main__':
-    # entities = load_pickle('mov_entities.pickle')
+    # --- entities
+    entities = load_pickle('mov_entities.pickle')
+    # entities = load_entities('./data/movieqa/knowledge_source/entities.txt')
+    # save_pickle(entities, 'mov_entities.pickle')
 
-    entities = load_entities('./data/movieqa/knowledge_source/entities.txt')
-    save_pickle(entities, 'mov_entities.pickle')
+    # --- movie-qa train/test dataset
+    # max_entity_length = max(map(len, (e.split(' ') for e in entities)))
+    # train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt', entities, max_entity_length)
+    # test_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_test.txt', entities, max_entity_length)
+    # save_pickle(train_data, 'mov_task1_qa_pipe_train.pickle')
+    # save_pickle(test_data, 'mov_task1_qa_pipe_test.pickle')
+
+    # vocab = functools.reduce(lambda x, y: x | y, (set(chain(chain.from_iterable(s), q, a)) for s, q, a in train_data+test_data))
+    # w2i = dict((c, i) for i, c in enumerate(vocab, 1))
+    # i2w = dict((i, c) for i, c in enumerate(vocab, 1))
+    # save_pickle(vocab, 'vocab.pickle')
+    # save_pickle(w2i, 'w2i.pickle')
+    # save_pickle(i2w, 'i2w.pickle')
     
     # generate kv_pairs
     # kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', True)
