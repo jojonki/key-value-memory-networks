@@ -100,28 +100,20 @@ def load_task(fpath, token_dict=None, max_token_length=None):
 
     return data
 
-def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
+def vectorize(data, w2i, story_maxlen, query_maxlen, entities=None):
     if entities:
         e2i = dict((e, i) for i, e in enumerate(entities))
 
     S, Q, A = [], [], []
     for story, question, answer in data:
         # Vectroize story
-        ss = []
-        for sentence in story:
-            s_pad_len = max(0, max_sentence_size - len(sentence))
-            ss.append([w2i[w] for w in sentence] + [0] * s_pad_len)
-
-        ss = ss[::-1][:memory_size] # discard old memory lager than memory_size(max_story_size)
-        # pad to memory_size
-        lm = max(0, memory_size - len(ss))
-        for _ in range(lm):
-            ss.append([0] * max_sentence_size)
+        s_pad_len = max(0, story_maxlen - len(story))
+        s = [w2i[w] for w in story] + [0] * s_pad_len
 
         # Vectroize question
-        q_pad_len = max(0, max_sentence_size - len(question))
+        q_pad_len = max(0, query_maxlen - len(question))
         q = [w2i[w] for w in question] + [0] * q_pad_len
-        # q = q[:max_sentence_size]
+        q = q[:query_maxlen]
 
         # Vectroize answer
         if entities:
@@ -133,7 +125,7 @@ def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
             for a in answer:
                 y[w2i[a]] = 1
 
-        S.append(ss)
+        S.append(s)
         Q.append(q)
         A.append(y)
     
@@ -172,7 +164,7 @@ def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
 
     return kv_pairs
         
-def vectorize_kv_pairs(kv_pairs, max_sentence_size, memory_size, entities):
+def vectorize_kv_pairs(kv_pairs, memory_size, entities):
     vec_kv_pairs = []
     w2i = dict((e, i) for i, e in enumerate(entities))
     w2i['directed_by'] = len(w2i)
@@ -181,21 +173,13 @@ def vectorize_kv_pairs(kv_pairs, max_sentence_size, memory_size, entities):
     w2i['release_year'] = len(w2i)
     w2i['has_genre'] = len(w2i)
     w2i['has_tags'] = len(w2i)
-    # w2i['has_plot'] = len(w2i)
-    for kv_list in kv_pairs:
-        vec_kv = []
-        for sentence in kv_list:
-#             print(sentence)
-            kv = [w2i[w] for w in sentence if w in w2i]
-            pad_len = max(0, max_sentence_size - len(kv))
-            vec_kv.append(kv + [0] * pad_len)
-    
-        # pad to memory_size
-        lm = max(0, memory_size - len(vec_kv))
-        for _ in range(lm):
-            vec_kv.append([0] * max_sentence_size)
-
-        vec_kv_pairs.append(vec_kv)
+    w2i['has_plot'] = len(w2i)
+    for ent_list in kv_pairs:
+#         print('----ent_list', ent_list)
+#         print(len(ent_list))
+        kv = [w2i[e] for e in ent_list if e in w2i]
+        mem_pad_len = max(0, memory_size - len(kv))
+        vec_kv_pairs.append(kv + [0] * mem_pad_len)
 
     return np.array(vec_kv_pairs, dtype=np.uint16)
 
