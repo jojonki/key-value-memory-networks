@@ -1,19 +1,9 @@
-'''Trains a memory network on the bAbI dataset.
-References:
-- Jason Weston, Antoine Bordes, Sumit Chopra, Tomas Mikolov, Alexander M. Rush,
-  "Towards AI-Complete Question Answering: A Set of Prerequisite Toy Tasks",
-  http://arxiv.org/abs/1502.05698
-- Sainbayar Sukhbaatar, Arthur Szlam, Jason Weston, Rob Fergus,
-  "End-To-End Memory Networks",
-  http://arxiv.org/abs/1503.08895
-Reaches 98.6% accuracy on task 'single_supporting_fact_10k' after 120 epochs.
-Time per epoch: 3s on CPU (core i7).
-'''
 from __future__ import print_function
 
+from keras import backend as K
 from keras.models import Sequential, Model
 from keras.layers.embeddings import Embedding
-from keras.layers import Input, Activation, Dense, Permute, Dropout, add, dot, concatenate
+from keras.layers import Input, Activation, Dense, Lambda, Permute, Dropout, add, dot, concatenate
 from keras.layers import LSTM
 from keras.utils.data_utils import get_file
 from keras.preprocessing.sequence import pad_sequences
@@ -21,6 +11,12 @@ from functools import reduce
 import tarfile
 import numpy as np
 import re
+
+import tensorflow as tf
+
+
+from itertools import chain
+from process_data import load_entities, save_pickle, load_pickle, load_kv_pairs, lower_list
 
 
 def tokenize(sent):
@@ -30,93 +26,123 @@ def tokenize(sent):
     '''
     return [x.strip() for x in re.split('(\W+)?', sent) if x.strip()]
 
+def load_task(fpath, is_babi, max_length=None):
+    with open (fpath, encoding='utf-8') as f:
+        lines = f.readlines()
+        data, story = [], []
+        for l in lines:
+            l = l.rstrip()
+            turn, left = l.split(' ', 1)
+            
+            if turn == '1': # new story
+                story = []
 
-def parse_stories(lines, only_supporting=False):
-    '''Parse stories provided in the bAbi tasks format
-    If only_supporting is true, only the sentences
-    that support the answer are kept.
-    '''
-    data = []
-    story = []
-    for line in lines:
-        line = line.decode('utf-8').strip()
-        nid, line = line.split(' ', 1)
-        nid = int(nid)
-        if nid == 1:
-            story = []
-        if '\t' in line:
-            q, a, supporting = line.split('\t')
-            q = tokenize(q)
-            substory = None
-            if only_supporting:
-                # Only select the related substory
-                supporting = map(int, supporting.split())
-                substory = [story[i - 1] for i in supporting]
-            else:
-                # Provide all the substories
+            if '\t' in left: # question
+                q, a = left.split('\t', 1)
+                q = tokenize(q)
+                q = lower_list(q)
+                if q[-1] == '?':
+                    q = q[:-1]
+                if '\t' in a:
+                    a = a.split('\t')[0] # discard reward
+                a = a.split('|') # may contain several labels
+                a = lower_list(a)
+
                 substory = [x for x in story if x]
-            data.append((substory, q, a))
-            story.append('')
+
+                data.append((substory, q, a))
+                story.append('')
+            else: # normal sentence
+                s = tokenize(left)
+                if s[-1] == '.':
+                    s = s[:-1]
+                s = lower_list(s)
+                story.append(s)
+
+    if is_babi:
+        flatten = lambda data: reduce(lambda x, y: x + y, data)
+        data = [(flatten(story), q, answer) for story, q, answer in data if not max_length or len(flatten(story)) < max_length]
+        
+    return data
+
+def vectorize(data, w2i, story_maxlen, query_maxlen, entities=None):
+    if entities:
+        e2i = dict((e, i) for i, e in enumerate(entities))
+
+    S, Q, A = [], [], []
+    for story, question, answer in data:
+        # Vectroize story
+        s_pad_len = max(0, story_maxlen - len(story))
+        s = [w2i[w] for w in story] + [0] * s_pad_len
+
+        # Vectroize question
+        q_pad_len = max(0, query_maxlen - len(question))
+        q = [w2i[w] for w in question] + [0] * q_pad_len
+        q = q[:query_maxlen]
+
+        # Vectroize answer
+        if entities:
+            y = np.zeros(len(entities), dtype='byte')
+            for a in answer:
+                y[e2i[a]] = 1
         else:
-            sent = tokenize(line)
-            story.append(sent)
-    return data
+            y = np.zeros(len(w2i) + 1) # +1 for nil word
+            for a in answer:
+                y[w2i[a]] = 1
+
+        S.append(s)
+        Q.append(q)
+        A.append(y)
+    
+    S = np.array(S, dtype=np.uint16)
+    Q = np.array(Q, dtype=np.uint16)
+    A = np.array(A, dtype='byte')
+
+    return S, Q, A
+
+def vectorize_kv_pairs(kv_pairs, memory_size, entities):
+    vec_kv_pairs = []
+    w2i = dict((e, i) for i, e in enumerate(entities))
+    w2i['directed_by'] = len(w2i)
+    w2i['written_by'] = len(w2i)
+    w2i['starred_actors'] = len(w2i)
+    w2i['release_year'] = len(w2i)
+    w2i['has_genre'] = len(w2i)
+    w2i['has_tags'] = len(w2i)
+    w2i['has_plot'] = len(w2i)
+    for ent_list in kv_pairs:
+#         print('----ent_list', ent_list)
+#         print(len(ent_list))
+        kv = [w2i[e] for e in ent_list if e in w2i]
+        mem_pad_len = max(0, memory_size - len(kv))
+        vec_kv_pairs.append(kv + [0] * mem_pad_len)
 
 
-def get_stories(f, only_supporting=False, max_length=None):
-    '''Given a file name, read the file,
-    retrieve the stories,
-    and then convert the sentences into a single story.
-    If max_length is supplied,
-    any stories longer than max_length tokens will be discarded.
-    '''
-    data = parse_stories(f.readlines(), only_supporting=only_supporting)
-    flatten = lambda data: reduce(lambda x, y: x + y, data)
-    data = [(flatten(story), q, answer) for story, q, answer in data if not max_length or len(flatten(story)) < max_length]
-    return data
+    return np.array(vec_kv_pairs, dtype=np.uint16)
 
-
-def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
-    X = []
-    Xq = []
-    Y = []
-    for story, query, answer in data:
-        x = [word_idx[w] for w in story]
-        xq = [word_idx[w] for w in query]
-        # let's not forget that index 0 is reserved
-        y = np.zeros(len(word_idx) + 1)
-        y[word_idx[answer]] = 1
-        X.append(x)
-        Xq.append(xq)
-        Y.append(y)
-    return (pad_sequences(X, maxlen=story_maxlen),
-            pad_sequences(Xq, maxlen=query_maxlen), np.array(Y))
-
-try:
-    path = get_file('babi-tasks-v1-2.tar.gz', origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
-except:
-    print('Error downloading dataset, please download it manually:\n'
-          '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz\n'
-          '$ mv tasks_1-20_v1-2.tar.gz ~/.keras/datasets/babi-tasks-v1-2.tar.gz')
-    raise
-tar = tarfile.open(path)
-
-challenges = {
-    # QA1 with 10,000 samples
-    'single_supporting_fact_10k': 'tasks_1-20_v1-2/en-10k/qa1_single-supporting-fact_{}.txt',
-    # QA2 with 10,000 samples
-    'two_supporting_facts_10k': 'tasks_1-20_v1-2/en-10k/qa2_two-supporting-facts_{}.txt',
-}
-challenge_type = 'single_supporting_fact_10k'
-challenge = challenges[challenge_type]
-
-print('Extracting stories for the challenge:', challenge_type)
-train_stories = get_stories(tar.extractfile(challenge.format('train')))
-test_stories = get_stories(tar.extractfile(challenge.format('test')))
+is_babi = False
+if is_babi:
+    train_stories = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt', is_babi)
+    test_stories = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt', is_babi)
+else:
+    N = 50000
+    train_stories = load_pickle('mov_task1_qa_pipe_train.pickle')[:N]
+    test_stories = load_pickle('mov_task1_qa_pipe_test.pickle')[:N]
+    kv_pairs = load_pickle('mov_kv_pairs.pickle')
+    train_kv_indices = load_pickle('mov_train_kv_indices.pickle')[:N]
+    test_kv_indices = load_pickle('mov_test_kv_indices.pickle')[:N]
+    train_kv = [ [kv_pairs[ind] for ind in indices] for indices in train_kv_indices ]
+    test_kv = [ [kv_pairs[ind] for ind in indices] for indices in test_kv_indices ]
+    train_kv = np.array([list(chain(*x)) for x in train_kv])
+    test_kv = np.array([list(chain(*x)) for x in test_kv])
+    print(len(train_kv), train_kv[0])
+    
+    entities = load_pickle('mov_entities.pickle')
+    entity_size = len(entities)
 
 vocab = set()
 for story, q, answer in train_stories + test_stories:
-    vocab |= set(story + q + [answer])
+    vocab |= set(story + q + answer)
 vocab = sorted(vocab)
 
 # Reserve 0 for masking via pad_sequences
@@ -136,15 +162,16 @@ print(train_stories[0])
 print('-')
 print('Vectorizing the word sequences...')
 
-word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
-inputs_train, queries_train, answers_train = vectorize_stories(train_stories,
-                                                               word_idx,
+print('len(entities)', len(entities))
+w2i = dict((c, i + 1) for i, c in enumerate(vocab))
+inputs_train, queries_train, answers_train = vectorize(train_stories,
+                                                               w2i,
                                                                story_maxlen,
-                                                               query_maxlen)
-inputs_test, queries_test, answers_test = vectorize_stories(test_stories,
-                                                            word_idx,
+                                                               query_maxlen, entities)
+inputs_test, queries_test, answers_test = vectorize(test_stories,
+                                                            w2i,
                                                             story_maxlen,
-                                                            query_maxlen)
+                                                            query_maxlen, entities)
 
 print('-')
 print('inputs: integer tensor of shape (samples, max_length)')
@@ -158,72 +185,78 @@ print('-')
 print('answers: binary (1 or 0) tensor of shape (samples, vocab_size)')
 print('answers_train shape:', answers_train.shape)
 print('answers_test shape:', answers_test.shape)
-print('-')
-print('Compiling...')
 
-# placeholders
-input_sequence = Input((story_maxlen,))
-question = Input((query_maxlen,))
 
-# encoders
-# embed the input sequence into a sequence of vectors
-input_encoder_m = Sequential()
-input_encoder_m.add(Embedding(input_dim=vocab_size,
-                              output_dim=64))
-input_encoder_m.add(Dropout(0.3))
-# output: (samples, story_maxlen, embedding_dim)
+print('train_kv[0]:', train_kv[0], ', mem_size:', len(train_kv[0]))
+# mem_maxlen = max(map(len, (x for x in train_kv+test_kv)))
+train_mem_maxlen = max(map(len, (x for x in train_kv)))
+test_mem_maxlen = max(map(len, (x for x in test_kv)))
+mem_maxlen = max(train_mem_maxlen, test_mem_maxlen)
 
-# embed the input into a sequence of vectors of size query_maxlen
-input_encoder_c = Sequential()
-input_encoder_c.add(Embedding(input_dim=vocab_size,
-                              output_dim=query_maxlen))
-input_encoder_c.add(Dropout(0.3))
-# output: (samples, story_maxlen, query_maxlen)
+print('mem_maxlen:', mem_maxlen)
+vec_train_kv = vectorize_kv_pairs(train_kv, mem_maxlen, vocab)
+vec_test_kv = vectorize_kv_pairs(test_kv, mem_maxlen, vocab)
 
-# embed the question into a sequence of vectors
-question_encoder = Sequential()
-question_encoder.add(Embedding(input_dim=vocab_size,
-                               output_dim=64,
-                               input_length=query_maxlen))
-question_encoder.add(Dropout(0.3))
-# output: (samples, query_maxlen, embedding_dim)
+def MemNNKV(mem_size, query_maxlen, vocab_size, entity_size, embd_size):
+    print('mem_size:', mem_size)
+    print('q_max', query_maxlen)
+    print('embd_size', embd_size)
+    print('vocab_size', vocab_size)
+    print('entity_size', entity_size)
+    # placeholders
+    key = Input((mem_size,), name='Key_Input')
+    val = Input((mem_size,), name='Val_Input')
+    question = Input((query_maxlen,), name='Question_Input')
 
-# encode input sequence and questions (which are indices)
-# to sequences of dense vectors
-input_encoded_m = input_encoder_m(input_sequence)
-input_encoded_c = input_encoder_c(input_sequence)
-question_encoded = question_encoder(question)
+    # encoders
+    # memory encoders
+    key_encoder = Sequential(name='Key_Encoder')
+    key_encoder.add(Embedding(input_dim=entity_size, output_dim=embd_size, input_length=mem_size))
+    val_encoder = Sequential(name='Val_Encoder')
+    val_encoder.add(Embedding(input_dim=entity_size, output_dim=embd_size, input_length=mem_size))
+    # output: (samples, mem_size, embd_size)
 
-# compute a 'match' between the first input vector sequence
-# and the question vector sequence
-# shape: `(samples, story_maxlen, query_maxlen)`
-match = dot([input_encoded_m, question_encoded], axes=(2, 2))
-match = Activation('softmax')(match)
+    # embed the question into a sequence of vectors
+    question_encoder = Sequential(name='Question_Encoder')
+    question_encoder.add(Embedding(input_dim=vocab_size, output_dim=embd_size, input_length=query_maxlen))
+#     question_encoder.add(Dropout(0.3))
+    # output: (samples, query_maxlen, embd_size)
 
-# add the match matrix with the second input vector sequence
-response = add([match, input_encoded_c])  # (samples, story_maxlen, query_maxlen)
-response = Permute((2, 1))(response)  # (samples, query_maxlen, story_maxlen)
+    # encode input sequence and questions (which are indices)
+    # to sequences of dense vectors
+    key_encoded = key_encoder(key) # (None, mem_size, embd_size)
+    val_encoded = val_encoder(val) # (None, mem_size, embd_size)
+    question_encoded = question_encoder(question) # (None, query_max_len, embd_size)
 
-# concatenate the match matrix with the question vector sequence
-answer = concatenate([response, question_encoded])
+    ph = dot([question_encoded, key_encoded], axes=(2, 2)) 
+    ph = Permute((2, 1))(ph) # (None, mem_size, query_max_len)
+    o = dot([ph, val_encoded], axes=(1, 1)) # (None, query_max_len, embd_size)
+    R = Dense(embd_size, input_shape=(embd_size,), name='R_Dense')     
+    q2 = R(add([question_encoded,  o])) # (None, query_max_len, embd_size)
+    
+    cand_encoder = Sequential(name='cand_encoder')
+    cand_encoder.add(Embedding(input_dim=entity_size, output_dim=embd_size, input_length=1))
+#     cand_encoder.add(Dropout(0.3))
+    
+    cand = Input((entity_size,), name='Cand_Input')
+    y_encoded = cand_encoder(cand) # (None, entity_size, embd_size)
+#     print('y_encoded', y_encoded.shape)
+    
+    answer = dot([q2, y_encoded], axes=(2, 2)) # (None, query_max_len, entity_size)
+    answer = Lambda(lambda x: K.sum(x, axis=1), output_shape=(entity_size, )) (answer)
+    preds = Activation('softmax')(answer)
+    print('--answer', answer.shape)
+    
+    # build the final model
+    model = Model([key, val, question, cand], answer)
+    model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
 
-# the original paper uses a matrix multiplication for this reduction step.
-# we choose to use a RNN instead.
-answer = LSTM(32)(answer)  # (samples, 32)
-
-# one regularization layer -- more would probably be needed.
-answer = Dropout(0.3)(answer)
-answer = Dense(vocab_size)(answer)  # (samples, vocab_size)
-# we output a probability distribution over the vocabulary
-answer = Activation('softmax')(answer)
-
-# build the final model
-model = Model([input_sequence, question], answer)
-model.compile(optimizer='rmsprop', loss='categorical_crossentropy',
-              metrics=['accuracy'])
-
-# train
-model.fit([inputs_train, queries_train], answers_train,
+embd_size = 64
+memnn_kv = MemNNKV(mem_maxlen, query_maxlen, vocab_size, entity_size, embd_size)
+print(memnn_kv.summary())
+# train_cands = 
+memnn_kv.fit([vec_train_kv, vec_train_kv, queries_train, answers_train], answers_train,
           batch_size=32,
-          epochs=120,
-          validation_data=([inputs_test, queries_test], answers_test))
+          epochs=10)#,
+          # validation_data=([vec_test_kv, vec_test_kv, queries_test, answers_test], answers_test))
