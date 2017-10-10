@@ -143,13 +143,14 @@ def vectorize(data, w2i, max_sentence_size, memory_size, entities=None):
 
     return S, Q, A
 
-def load_kv_pairs(path, is_save_pickle=False):
+def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
     """load key-value paris from KB"""
-    rel = ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags']#, 'has_plot'] # TODO hard code
+    rel = ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'has_plot'] # TODO hard code
     kv_pairs = []
     with open(path, 'r') as f:
         lines = f.readlines()
-        for l in lines:
+        for i, l in enumerate(lines):
+            if i % 500 == 0: print(i, '/', len(lines))
             if l == '\n': continue
             k = []
             turn, left = l.rstrip().split(' ', 1)
@@ -160,11 +161,11 @@ def load_kv_pairs(path, is_save_pickle=False):
                     # TODO
                     k.append(tmp[0].rstrip().lower())
                     k.append(r)
-                    # k += word_tokenize(tmp[1].rstrip().lower())
-                    k += tmp[1].strip().lower().split(', ')
+                    vals = tmp[1].strip().lower().split(' ')
+                    vals = find_ngrams(token_dict, vals, max_token_length)
+                    k += vals
                     kv_pairs.append(k)
                     break
-        # kv_pairs = [l.rstrip().split(' ', 1)[1].split() for l in lines if l != '\n'] # key==value in Sentence Level
 
     if is_save_pickle:
         save_pickle(kv_pairs, 'mov_kv_pairs.pickle')
@@ -200,8 +201,8 @@ def vectorize_kv_pairs(kv_pairs, max_sentence_size, memory_size, entities):
 
 def get_kv_indices(data, kv_pairs):
     kv_indices = []
-    for i, (_, q, _) in enumerate(train_data):
-        if i%100 == 0: print(i, '/', len(train_data))
+    for i, (_, q, _) in enumerate(data):
+        if i%100 == 0: print(i, '/', len(data))
         ind = []
         question = ' '.join(q)
         for j, kv in enumerate(kv_pairs):
@@ -237,14 +238,15 @@ if __name__ == '__main__':
     entities = load_pickle('mov_entities.pickle')
     # entities = load_entities('./data/movieqa/knowledge_source/entities.txt')
     # save_pickle(entities, 'mov_entities.pickle')
+    max_entity_length = max(map(len, (e.split(' ') for e in entities)))
 
     # --- movie-qa train/test dataset
-    # max_entity_length = max(map(len, (e.split(' ') for e in entities)))
     # train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt', entities, max_entity_length)
     # test_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_test.txt', entities, max_entity_length)
     # save_pickle(train_data, 'mov_task1_qa_pipe_train.pickle')
     # save_pickle(test_data, 'mov_task1_qa_pipe_test.pickle')
 
+    # -- update vocab and w2i/i2w
     # vocab = functools.reduce(lambda x, y: x | y, (set(chain(chain.from_iterable(s), q, a)) for s, q, a in train_data+test_data))
     # w2i = dict((c, i) for i, c in enumerate(vocab, 1))
     # i2w = dict((i, c) for i, c in enumerate(vocab, 1))
@@ -253,7 +255,7 @@ if __name__ == '__main__':
     # save_pickle(i2w, 'i2w.pickle')
     
     # generate kv_pairs
-    # kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', True)
+    kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities,  max_entity_length, True)
     # vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
 
     # generate stopwords
