@@ -23,7 +23,8 @@ def lower_list(word_list):
 def load_entities(path):
     with open(path, 'r') as f:
         lines = f.readlines()
-        return [e.lower().rstrip() for e in lines]
+        entities = [e.lower().rstrip() for e in lines]
+        return list(set(entities))
 
 def load_task(fpath):
     with open (fpath, encoding='utf-8') as f:
@@ -194,9 +195,12 @@ def get_stop_words(freq, is_save_pickle):
 
 if __name__ == '__main__':
     # entities = load_pickle('mov_entities.pickle')
+
+    entities = load_entities('./data/movieqa/knowledge_source/entities.txt')
+    save_pickle(entities, 'mov_entities.pickle')
     
     # generate kv_pairs
-    kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', True)
+    # kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', True)
     # vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
 
     # generate stopwords
