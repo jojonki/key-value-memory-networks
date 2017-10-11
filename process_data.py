@@ -100,10 +100,7 @@ def load_task(fpath, token_dict=None, max_token_length=None):
 
     return data
 
-def vectorize(data, w2i, story_maxlen, query_maxlen, entities=None):
-    if entities:
-        e2i = dict((e, i) for i, e in enumerate(entities))
-
+def vectorize(data, w2i, story_maxlen, query_maxlen):
     S, Q, A = [], [], []
     for story, question, answer in data:
         # Vectroize story
@@ -116,14 +113,17 @@ def vectorize(data, w2i, story_maxlen, query_maxlen, entities=None):
         q = q[:query_maxlen]
 
         # Vectroize answer
-        if entities:
-            y = np.zeros(len(entities), dtype='byte')
-            for a in answer:
-                y[e2i[a]] = 1
-        else:
-            y = np.zeros(len(w2i) + 1) # +1 for nil word
-            for a in answer:
-                y[w2i[a]] = 1
+        # if entities:
+        #     y = np.zeros(len(entities), dtype='byte')
+        #     for a in answer:
+        #         y[e2i[a]] = 1
+        # else:
+        #     y = np.zeros(len(w2i) + 1) # +1 for nil word
+        #     for a in answer:
+        #         y[w2i[a]] = 1
+        y = np.zeros(len(w2i))
+        for a in answer:
+            y[w2i[a]] = 1
 
         S.append(s)
         Q.append(q)
@@ -193,18 +193,13 @@ def get_relative_kv(kv_indices, kv_pairs):
         
 def vectorize_kv(kv, memory_size, w2i):
     vec_list = []
-    w2i['directed_by'] = len(w2i)
-    w2i['written_by'] = len(w2i)
-    w2i['starred_actors'] = len(w2i)
-    w2i['release_year'] = len(w2i)
-    w2i['has_genre'] = len(w2i)
-    w2i['has_tags'] = len(w2i)
-    w2i['has_plot'] = len(w2i)
-    def _vectroize(data, w2i, memory_size):
-        vec = [w2i[e] for e in data if e in w2i]
-        mem_pad_len = max(0, memory_size - len(vec))
-        return (vec_k + [0] * mem_pad_len)
-
+    # w2i['directed_by'] = len(w2i)
+    # w2i['written_by'] = len(w2i)
+    # w2i['starred_actors'] = len(w2i)
+    # w2i['release_year'] = len(w2i)
+    # w2i['has_genre'] = len(w2i)
+    # w2i['has_tags'] = len(w2i)
+    # w2i['has_plot'] = len(w2i)
     for data in kv:
         vec = [w2i[e] for e in data if e in w2i]
         mem_pad_len = max(0, memory_size - len(vec))

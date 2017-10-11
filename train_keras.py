@@ -29,13 +29,14 @@ else:
     entities = load_pickle('mov_entities.pickle')
     entity_size = len(entities)
 
-vocab = set()
+# TODO
+vocab = set(entities +  ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'has_plot'] )
 for story, q, answer in train_data + test_data:
     vocab |= set(story + q + answer)
 vocab = sorted(vocab)
 
 # Reserve 0 for masking via pad_sequences
-vocab_size = len(vocab) + 1
+vocab_size = len(vocab)
 story_maxlen = max(map(len, (x for x, _, _ in train_data + test_data)))
 query_maxlen = max(map(len, (x for _, x, _ in train_data + test_data)))
 
@@ -52,15 +53,15 @@ print('-')
 print('Vectorizing the word sequences...')
 
 print('Number of entities', len(entities))
-w2i = dict((c, i + 1) for i, c in enumerate(vocab))
+w2i = dict((c, i) for i, c in enumerate(vocab))
 inputs_train, queries_train, answers_train = vectorize(train_data,
                                                                w2i,
                                                                story_maxlen,
-                                                               query_maxlen, entities)
+                                                               query_maxlen)
 inputs_test, queries_test, answers_test = vectorize(test_data,
                                                             w2i,
                                                             story_maxlen,
-                                                            query_maxlen, entities)
+                                                            query_maxlen)
 
 print('-')
 print('inputs: integer tensor of shape (samples, max_length)')
@@ -85,21 +86,21 @@ print('answers_test shape:', answers_test.shape)
 # vec_train_kv = vectorize_kv_pairs(train_kv, mem_maxlen, vocab)
 # vec_test_kv = vectorize_kv_pairs(test_kv, mem_maxlen, vocab)
 
-e2i = dict((e, i) for i, e in enumerate(entities))
+# e2i = dict((e, i) for i, e in enumerate(entities))
 max_memory_num = 200
-vec_train_k = vectorize_kv(train_k, mem_maxlen, e2i)
-vec_train_v = vectorize_kv(train_v, mem_maxlen, e2i)
-vec_test_k = vectorize_kv(test_k, mem_maxlen, e2i)
-vec_test_v = vectorize_kv(test_v, mem_maxlen, e2i)
+vec_train_k = vectorize_kv(train_k, mem_maxlen, w2i)
+vec_train_v = vectorize_kv(train_v, mem_maxlen, w2i)
+vec_test_k = vectorize_kv(test_k, mem_maxlen, w2i)
+vec_test_v = vectorize_kv(test_v, mem_maxlen, w2i)
 print('vec_k', vec_train_k.shape)
 print('vec_v', vec_train_v.shape)
 
-embd_size = 256 
-memnn_kv = MemNNKV(mem_maxlen, query_maxlen, vocab_size, entity_size, embd_size)
+embd_size = 256
+memnn_kv = MemNNKV(mem_maxlen, query_maxlen, vocab_size, embd_size)
 print(memnn_kv.summary())
 memnn_kv.fit([vec_train_k, vec_train_v, queries_train], answers_train,
           batch_size=32,
-          epochs=10,
+          epochs=30,
           validation_data=([vec_test_k, vec_test_v, queries_test], answers_test))
 
 print('save model')
