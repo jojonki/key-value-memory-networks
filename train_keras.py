@@ -89,6 +89,8 @@ e2i = dict((e, i) for i, e in enumerate(entities))
 max_memory_num = 200
 vec_train_k = vectorize_kv(train_k, mem_maxlen, e2i)
 vec_train_v = vectorize_kv(train_v, mem_maxlen, e2i)
+vec_test_k = vectorize_kv(test_k, mem_maxlen, e2i)
+vec_test_v = vectorize_kv(test_v, mem_maxlen, e2i)
 print('vec_k', vec_train_k.shape)
 print('vec_v', vec_train_v.shape)
 
@@ -97,5 +99,8 @@ memnn_kv = MemNNKV(mem_maxlen, query_maxlen, vocab_size, entity_size, embd_size)
 print(memnn_kv.summary())
 memnn_kv.fit([vec_train_k, vec_train_v, queries_train], answers_train,
           batch_size=32,
-          epochs=10)#,
-          # validation_data=([vec_test_kv, vec_test_kv, queries_test, answers_test], answers_test))
+          epochs=10,
+          validation_data=([vec_test_k, vec_test_v, queries_test], answers_test))
+
+print('save model')
+memnn_kv.save('model_memnn_kv.h5')
