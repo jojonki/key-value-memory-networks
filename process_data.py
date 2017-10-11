@@ -177,10 +177,22 @@ def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
         save_pickle(kv_pairs, 'mov_kv_pairs.pickle')
 
     return kv_pairs
+
+def get_relative_kv(kv_indices, kv_pairs):
+    print('get relative key-values...')
+    data_k, data_v = [], []
+    for i, indices in enumerate(kv_indices):
+        # if i % 10000 == 0: print(i, '/', len(kv_indices))
+        k_list, v_list = [], []
+        for kv_ind in indices:
+            k_list.append(kv_pairs[kv_ind][0])
+            v_list.append(kv_pairs[kv_ind][1])
+        data_k.append(k_list)
+        data_v.append(v_list)
+    return data_k, data_v
         
-def vectorize_kv_pairs(kv_pairs, memory_size, entities):
-    vec_kv_pairs = []
-    w2i = dict((e, i) for i, e in enumerate(entities))
+def vectorize_kv(kv, memory_size, w2i):
+    vec_list = []
     w2i['directed_by'] = len(w2i)
     w2i['written_by'] = len(w2i)
     w2i['starred_actors'] = len(w2i)
@@ -188,14 +200,17 @@ def vectorize_kv_pairs(kv_pairs, memory_size, entities):
     w2i['has_genre'] = len(w2i)
     w2i['has_tags'] = len(w2i)
     w2i['has_plot'] = len(w2i)
-    for ent_list in kv_pairs:
-#         print('----ent_list', ent_list)
-#         print(len(ent_list))
-        kv = [w2i[e] for e in ent_list if e in w2i]
-        mem_pad_len = max(0, memory_size - len(kv))
-        vec_kv_pairs.append(kv + [0] * mem_pad_len)
+    def _vectroize(data, w2i, memory_size):
+        vec = [w2i[e] for e in data if e in w2i]
+        mem_pad_len = max(0, memory_size - len(vec))
+        return (vec_k + [0] * mem_pad_len)
 
-    return np.array(vec_kv_pairs, dtype=np.uint16)
+    for data in kv:
+        vec = [w2i[e] for e in data if e in w2i]
+        mem_pad_len = max(0, memory_size - len(vec))
+        vec_list.append(vec + [0] * mem_pad_len)
+
+    return np.array(vec_list, dtype=np.uint16)
 
 def get_kv_indices(data, kv_pairs):
     kv_indices = []
