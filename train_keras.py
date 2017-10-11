@@ -4,7 +4,7 @@ from functools import reduce
 from itertools import chain
 import numpy as np
 
-from process_data import load_entities, save_pickle, load_pickle, load_kv_pairs, lower_list, vectorize, vectorize_kv_pairs
+from process_data import load_entities, save_pickle, load_pickle, load_kv_pairs, lower_list, vectorize, vectorize_kv, get_relative_kv
 from net.memnn_kv import MemNNKV
 
 is_babi = False
@@ -12,18 +12,20 @@ if is_babi:
     train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt', is_babi)
     test_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt', is_babi)
 else:
-    N = 500
+    # N = 49900
+    N = 50000000
+    mem_maxlen = 100 # 1つのエピソードに関連しているKVの数に対する制限
     train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:N]
     test_data = load_pickle('mov_task1_qa_pipe_test.pickle')[:N]
     kv_pairs = load_pickle('mov_kv_pairs.pickle')
     train_kv_indices = load_pickle('mov_train_kv_indices.pickle')[:N]
     test_kv_indices = load_pickle('mov_test_kv_indices.pickle')[:N]
-    train_kv = [ [kv_pairs[ind] for ind in indices] for indices in train_kv_indices ]
-    test_kv = [ [kv_pairs[ind] for ind in indices] for indices in test_kv_indices ]
-    train_kv = np.array([list(chain(*x)) for x in train_kv])
-    test_kv = np.array([list(chain(*x)) for x in test_kv])
-    print(len(train_kv), train_kv[0])
-    
+    train_k, train_v = get_relative_kv(train_kv_indices, kv_pairs)
+    test_k, test_v = get_relative_kv(test_kv_indices, kv_pairs)
+    train_k = np.array([list(chain(*x))[:mem_maxlen] for x in train_k])
+    train_v = np.array([list(chain(*x))[:mem_maxlen] for x in train_v])
+    test_k = np.array([list(chain(*x))[:mem_maxlen] for x in test_k])
+    test_v = np.array([list(chain(*x))[:mem_maxlen] for x in test_v])
     entities = load_pickle('mov_entities.pickle')
     entity_size = len(entities)
 
@@ -74,20 +76,26 @@ print('answers_train shape:', answers_train.shape)
 print('answers_test shape:', answers_test.shape)
 
 
-print('train_kv[0]:', train_kv[0], ', mem_size:', len(train_kv[0]))
 # mem_maxlen = max(map(len, (x for x in train_kv+test_kv)))
-train_mem_maxlen = max(map(len, (x for x in train_kv)))
-test_mem_maxlen = max(map(len, (x for x in test_kv)))
-mem_maxlen = max(train_mem_maxlen, test_mem_maxlen)
+# train_mem_maxlen = max(map(len, (x for x in train_kv)))
+# test_mem_maxlen = max(map(len, (x for x in test_kv)))
+# mem_maxlen = max(train_mem_maxlen, test_mem_maxlen)
+#
+# print('mem_maxlen:', mem_maxlen)
+# vec_train_kv = vectorize_kv_pairs(train_kv, mem_maxlen, vocab)
+# vec_test_kv = vectorize_kv_pairs(test_kv, mem_maxlen, vocab)
 
-print('mem_maxlen:', mem_maxlen)
-vec_train_kv = vectorize_kv_pairs(train_kv, mem_maxlen, vocab)
-vec_test_kv = vectorize_kv_pairs(test_kv, mem_maxlen, vocab)
+e2i = dict((e, i) for i, e in enumerate(entities))
+max_memory_num = 200
+vec_train_k = vectorize_kv(train_k, mem_maxlen, e2i)
+vec_train_v = vectorize_kv(train_v, mem_maxlen, e2i)
+print('vec_k', vec_train_k.shape)
+print('vec_v', vec_train_v.shape)
 
-embd_size = 64
+embd_size = 256 
 memnn_kv = MemNNKV(mem_maxlen, query_maxlen, vocab_size, entity_size, embd_size)
 print(memnn_kv.summary())
-memnn_kv.fit([vec_train_kv, vec_train_kv, queries_train, answers_train], answers_train,
+memnn_kv.fit([vec_train_k, vec_train_v, queries_train], answers_train,
           batch_size=32,
           epochs=10)#,
           # validation_data=([vec_test_kv, vec_test_kv, queries_test, answers_test], answers_test))
