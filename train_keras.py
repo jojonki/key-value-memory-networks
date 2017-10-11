@@ -12,8 +12,7 @@ if is_babi:
     train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt', is_babi)
     test_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt', is_babi)
 else:
-    # N = 49900
-    N = 500000000
+    N = 500
     train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:N]
     test_data = load_pickle('mov_task1_qa_pipe_test.pickle')[:N]
     kv_pairs = load_pickle('mov_kv_pairs.pickle')

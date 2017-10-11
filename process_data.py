@@ -144,19 +144,33 @@ def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
         for i, l in enumerate(lines):
             if i % 500 == 0: print(i, '/', len(lines))
             if l == '\n': continue
-            k = []
             turn, left = l.rstrip().split(' ', 1)
-
             for r in rel:
                 if r in left:
+                    k, v = [], []
                     tmp = left.split(r)
-                    # TODO
-                    k.append(tmp[0].rstrip().lower())
+                    lhs = tmp[0].rstrip().lower()
+                    k.append(lhs)
                     k.append(r)
-                    vals = tmp[1].strip().lower().split(' ')
+                    vals = word_tokenize(tmp[1].strip().lower())#.split(' ')
                     vals = find_ngrams(token_dict, vals, max_token_length)
-                    k += vals
-                    kv_pairs.append(k)
+                    while ',' in vals:
+                        vals.remove(',') #@TODO
+                    if r == 'has_plot':
+                        kv_pairs.append((k, vals))
+                    else:
+                        for v in vals:
+                            kv_pairs.append((k, [v]))
+
+                    # double KB by considering reversed relation. see 3.2
+                    if r == 'has_plot':
+                        kv_pairs.append((vals + ['!'+r], [lhs]))
+                    else:
+                        for v in vals:
+                            k_r = [v, '!'+r]
+                            v_r = [lhs]
+                            kv_pairs.append((k_r, v_r))
+                        
                     break
 
     if is_save_pickle:
@@ -187,14 +201,13 @@ def get_kv_indices(data, kv_pairs):
     kv_indices = []
     for i, (_, q, _) in enumerate(data):
         if i%100 == 0: print(i, '/', len(data))
-        ind = []
-        question = ' '.join(q)
-        for j, kv in enumerate(kv_pairs):
-            for ent in kv:
-                if ent in question:
-                    ind.append(j)
-                    break
-        kv_indices.append(ind)
+        indices = []
+        for w in q:
+            if w not in stopwords:
+                for kv_ind, (k, v) in enumerate(kv_pairs):
+                    if w in (k+v):
+                        indices.append(kv_ind)
+        kv_indices.append(indices)
     return kv_indices
 
 def get_stop_words(freq, is_save_pickle):
@@ -229,6 +242,8 @@ if __name__ == '__main__':
     # test_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_test.txt', entities, max_entity_length)
     # save_pickle(train_data, 'mov_task1_qa_pipe_train.pickle')
     # save_pickle(test_data, 'mov_task1_qa_pipe_test.pickle')
+    train_data = load_pickle('mov_task1_qa_pipe_train.pickle')
+    test_data = load_pickle('mov_task1_qa_pipe_test.pickle')
 
     # -- update vocab and w2i/i2w
     # vocab = functools.reduce(lambda x, y: x | y, (set(chain(chain.from_iterable(s), q, a)) for s, q, a in train_data+test_data))
@@ -239,11 +254,19 @@ if __name__ == '__main__':
     # save_pickle(i2w, 'i2w.pickle')
     
     # generate kv_pairs
-    kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities,  max_entity_length, True)
+    # kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities,  max_entity_length, True)
+    kv_pairs = load_pickle('mov_kv_pairs.pickle')
     # vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
+    
 
     # generate stopwords
     # get_stop_words(1000, True)
+    stopwords = load_pickle('mov_stopwords.pickle')
+
+    train_kv_indices = get_kv_indices(train_data, kv_pairs)
+    save_pickle(train_kv_indices, 'mov_train_kv_indices.pickle')
+    test_kv_indices = get_kv_indices(test_data, kv_pairs)
+    save_pickle(test_kv_indices, 'mov_test_kv_indices.pickle')
     
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
     # data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')
