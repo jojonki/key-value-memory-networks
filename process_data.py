@@ -122,6 +122,7 @@ def vectorize(data, w2i, story_maxlen, query_maxlen):
         #     for a in answer:
         #         y[w2i[a]] = 1
         y = np.zeros(len(w2i))
+        # y[w2i[answer[0]]] = 1
         for a in answer:
             y[w2i[a]] = 1
 

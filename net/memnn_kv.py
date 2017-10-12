@@ -8,6 +8,7 @@ from keras.layers import LSTM
 from keras.utils.data_utils import get_file
 from keras.preprocessing.sequence import pad_sequences
 from functools import reduce
+from keras import metrics
 import numpy as np
 
 def MemNNKV(mem_size, query_maxlen, vocab_size, embd_size):
@@ -59,9 +60,12 @@ def MemNNKV(mem_size, query_maxlen, vocab_size, embd_size):
     answer = Lambda(lambda x: K.sum(x, axis=1), output_shape=(vocab_size, )) (answer)
     print('answer.shape', answer.shape)
     preds = Activation('softmax')(answer)
+    # preds = Activation('sigmoid')(answer)
     
     # build the final model
     model = Model([key, val, question], preds)
-    model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+    # model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy', metrics.categorical_accuracy, metrics.sparse_categorical_accuracy])
+    # model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
