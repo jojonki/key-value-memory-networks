@@ -3,6 +3,9 @@ from __future__ import print_function
 from functools import reduce
 from itertools import chain
 import numpy as np
+import datetime
+
+from keras.callbacks import ModelCheckpoint
 
 from process_data import load_entities, save_pickle, load_pickle, load_kv_pairs, lower_list, vectorize, vectorize_kv, get_relative_kv
 from net.memnn_kv import MemNNKV
@@ -12,8 +15,7 @@ if is_babi:
     train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt', is_babi)
     test_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt', is_babi)
 else:
-    # N = 49900
-    N = 50000000
+    N = 5000000
     mem_maxlen = 100 # 1つのエピソードに関連しているKVの数に対する制限
     train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:N]
     test_data = load_pickle('mov_task1_qa_pipe_test.pickle')[:N]
@@ -98,10 +100,15 @@ print('vec_v', vec_train_v.shape)
 embd_size = 256
 memnn_kv = MemNNKV(mem_maxlen, query_maxlen, vocab_size, embd_size)
 print(memnn_kv.summary())
+now = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+model_path = 'saved_models/' + now + '_kvnn-weights-{epoch:02d}-{loss:.4f}.hdf5'
+checkpoint = ModelCheckpoint(model_path, monitor='loss', verbose=1, save_best_only=True, mode='min')
+callbacks_list = [checkpoint]
 memnn_kv.fit([vec_train_k, vec_train_v, queries_train], answers_train,
           batch_size=32,
           epochs=30,
+          callbacks=callbacks_list,
           validation_data=([vec_test_k, vec_test_v, queries_test], answers_test))
 
-print('save model')
-memnn_kv.save('model_memnn_kv.h5')
+# print('save model')
+# memnn_kv.save('model_memnn_kv.h5')
