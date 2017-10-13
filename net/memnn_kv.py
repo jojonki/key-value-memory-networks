@@ -65,7 +65,8 @@ def MemNNKV(mem_size, query_maxlen, vocab_size, embd_size):
     # build the final model
     model = Model([key, val, question], preds)
     # model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy', metrics.categorical_accuracy, metrics.sparse_categorical_accuracy])
+    # model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy', metrics.categorical_accuracy, metrics.sparse_categorical_accuracy])
+    model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=[metrics.categorical_accuracy])
     # model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
