@@ -66,7 +66,8 @@ def load_task(fpath, token_dict=None, max_token_length=None):
     with open (fpath, encoding='utf-8') as f:
         lines = f.readlines()
         data, story = [], []
-        for l in lines:
+        for i, l in enumerate(lines):
+            if i % 1000 == 0: print(i, '/', len(lines))
             l = l.rstrip()
             turn, left = l.split(' ', 1)
             
@@ -75,10 +76,11 @@ def load_task(fpath, token_dict=None, max_token_length=None):
 
             if '\t' in left: # question
                 q, a = left.split('\t', 1)
-                q = word_tokenize(q)
-                q = lower_list(q)
                 if q[-1] == '?':
                     q = q[:-1]
+                # q = word_tokenize(q)
+                q = q.split(' ')
+                q = lower_list(q)
                 if token_dict and max_token_length:
                     q = find_ngrams(token_dict, q, max_token_length)
 
@@ -92,7 +94,8 @@ def load_task(fpath, token_dict=None, max_token_length=None):
                 data.append((substory, q, a))
                 story.append('')
             else: # normal sentence
-                s = word_tokenize(left)
+                # s = word_tokenize(left)
+                s = left.split(' ')
                 if s[-1] == '.':
                     s = s[:-1]
                 s = lower_list(s)
@@ -153,7 +156,8 @@ def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
                     lhs = tmp[0].rstrip().lower()
                     k.append(lhs)
                     k.append(r)
-                    vals = word_tokenize(tmp[1].strip().lower())#.split(' ')
+                    # vals = word_tokenize(tmp[1].strip().lower())#.split(' ')
+                    vals = (tmp[1].strip().lower()).split(' ')
                     vals = find_ngrams(token_dict, vals, max_token_length)
                     while ',' in vals:
                         vals.remove(',') #@TODO
@@ -179,19 +183,6 @@ def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
 
     return kv_pairs
 
-def get_relative_kv(kv_indices, kv_pairs):
-    print('get relative key-values...')
-    data_k, data_v = [], []
-    for i, indices in enumerate(kv_indices):
-        # if i % 10000 == 0: print(i, '/', len(kv_indices))
-        k_list, v_list = [], []
-        for kv_ind in indices:
-            k_list.append(kv_pairs[kv_ind][0])
-            v_list.append(kv_pairs[kv_ind][1])
-        data_k.append(k_list)
-        data_v.append(v_list)
-    return data_k, data_v
-        
 def vectorize_kv(kv, memory_size, w2i):
     vec_list = []
     # w2i['directed_by'] = len(w2i)
@@ -208,18 +199,38 @@ def vectorize_kv(kv, memory_size, w2i):
 
     return np.array(vec_list, dtype=np.uint16)
 
-def get_kv_indices(data, kv_pairs):
-    kv_indices = []
+# def get_related_kv(kv_indices, kv_pairs):
+#     print('get related key-values...')
+#     data_k, data_v = [], []
+#     for i, indices in enumerate(kv_indices):
+#         # if i % 10000 == 0: print(i, '/', len(kv_indices))
+#         k_list, v_list = [], []
+#         for kv_ind in indices:
+#             k_list.append(kv_pairs[kv_ind][0])
+#             v_list.append(kv_pairs[kv_ind][1])
+#         data_k.append(k_list)
+#         data_v.append(v_list)
+#     return data_k, data_v
+        
+# def get_kv_indices(data, kv_pairs):
+def load_kv_dataset(data, kv_pairs):
+    # kv_indices = []
+    data_k, data_v = [], []
     for i, (_, q, _) in enumerate(data):
         if i%100 == 0: print(i, '/', len(data))
-        indices = []
+        # indices = []
+        k_list, v_list = [], []
         for w in q:
             if w not in stopwords:
                 for kv_ind, (k, v) in enumerate(kv_pairs):
                     if w in (k+v):
-                        indices.append(kv_ind)
-        kv_indices.append(indices)
-    return kv_indices
+                        # indices.append(kv_ind)
+                        k_list.append(k)
+                        v_list.append(v)
+        # kv_indices.append(indices)
+        data_k.append(k_list)
+        data_v.append(v_list)
+    return data_k, data_v
 
 def get_stop_words(freq, is_save_pickle):
     train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt')
@@ -238,7 +249,8 @@ def get_stop_words(freq, is_save_pickle):
     stopwords = [k for k, v in bow.items() if v >= freq]
     if is_save_pickle:
         save_pickle(stopwords, 'mov_stopwords.pickle')
-    
+        
+    return stopwords
 
 
 if __name__ == '__main__':
@@ -246,7 +258,7 @@ if __name__ == '__main__':
     entities = load_pickle('mov_entities.pickle')
     # entities = load_entities('./data/movieqa/knowledge_source/entities.txt')
     # save_pickle(entities, 'mov_entities.pickle')
-    max_entity_length = max(map(len, (e.split(' ') for e in entities)))
+    max_entity_length = max(map(len, (e.split(' ') for e in entities))) # for searching n-gram
 
     # --- movie-qa train/test dataset
     # train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt', entities, max_entity_length)
@@ -257,7 +269,10 @@ if __name__ == '__main__':
     test_data = load_pickle('mov_task1_qa_pipe_test.pickle')
 
     # -- update vocab and w2i/i2w
-    # vocab = functools.reduce(lambda x, y: x | y, (set(chain(chain.from_iterable(s), q, a)) for s, q, a in train_data+test_data))
+    # vocab = set(entities +  ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'has_plot'] )
+    # for story, q, answer in train_data + test_data:
+    #     vocab |= set(story + q + answer)
+    # vocab = sorted(vocab)
     # w2i = dict((c, i) for i, c in enumerate(vocab, 1))
     # i2w = dict((i, c) for i, c in enumerate(vocab, 1))
     # save_pickle(vocab, 'vocab.pickle')
@@ -269,15 +284,20 @@ if __name__ == '__main__':
     kv_pairs = load_pickle('mov_kv_pairs.pickle')
     # vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
     
-
     # generate stopwords
-    # get_stop_words(1000, True)
-    stopwords = load_pickle('mov_stopwords.pickle')
+    stopwords = get_stop_words(1000, True)
+    # stopwords = load_pickle('mov_stopwords.pickle')
 
-    train_kv_indices = get_kv_indices(train_data, kv_pairs)
-    save_pickle(train_kv_indices, 'mov_train_kv_indices.pickle')
-    test_kv_indices = get_kv_indices(test_data, kv_pairs)
-    save_pickle(test_kv_indices, 'mov_test_kv_indices.pickle')
+    # train_kv_indices = get_kv_indices(train_data, kv_pairs)
+    # save_pickle(train_kv_indices, 'mov_train_kv_indices.pickle')
+    # test_kv_indices = get_kv_indices(test_data, kv_pairs)
+    # save_pickle(test_kv_indices, 'mov_test_kv_indices.pickle')
+    train_k, train_v = load_kv_dataset(train_data, kv_pairs)
+    save_pickle(train_k, 'mov_train_k.pickle')
+    save_pickle(train_v, 'mov_train_v.pickle')
+    test_k, test_v = load_kv_dataset(test_data, kv_pairs)
+    save_pickle(test_k, 'mov_test_k.pickle')
+    save_pickle(test_v, 'mov_test_v.pickle')
     
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
     # data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')

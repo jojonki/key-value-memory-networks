@@ -7,7 +7,7 @@ import datetime
 
 from keras.callbacks import ModelCheckpoint
 
-from process_data import load_entities, save_pickle, load_pickle, load_kv_pairs, lower_list, vectorize, vectorize_kv, get_relative_kv
+from process_data import load_entities, save_pickle, load_pickle, load_kv_pairs, lower_list, vectorize, vectorize_kv, load_kv_dataset
 from net.memnn_kv import MemNNKV
 
 is_babi = False
@@ -20,10 +20,14 @@ else:
     train_data = load_pickle('mov_task1_qa_pipe_train.pickle')[:N]
     test_data = load_pickle('mov_task1_qa_pipe_test.pickle')[:N]
     kv_pairs = load_pickle('mov_kv_pairs.pickle')
-    train_kv_indices = load_pickle('mov_train_kv_indices.pickle')[:N]
-    test_kv_indices = load_pickle('mov_test_kv_indices.pickle')[:N]
-    train_k, train_v = get_relative_kv(train_kv_indices, kv_pairs)
-    test_k, test_v = get_relative_kv(test_kv_indices, kv_pairs)
+    # train_kv_indices = load_pickle('mov_train_kv_indices.pickle')[:N]
+    # test_kv_indices = load_pickle('mov_test_kv_indices.pickle')[:N]
+    # train_k, train_v = get_relative_kv(train_kv_indices, kv_pairs)
+    # test_k, test_v = get_relative_kv(test_kv_indices, kv_pairs)
+    train_k = load_pickle('mov_train_k.pickle')
+    train_v = load_pickle('mov_train_k.pickle')
+    test_k = load_pickle('mov_test_k.pickle')
+    test_v = load_pickle('mov_test_v.pickle')
     train_k = np.array([list(chain(*x))[:mem_maxlen] for x in train_k])
     train_v = np.array([list(chain(*x))[:mem_maxlen] for x in train_v])
     test_k = np.array([list(chain(*x))[:mem_maxlen] for x in test_k])
