@@ -7,8 +7,8 @@ from process_data import find_ngrams, load_pickle, lower_list
 mem_maxlen = 100
 query_maxlen = 21
 
-print('load model...')
-model = load_model('model_memnn_kv.h5')
+print('load data...')
+model = load_model('demo_model_memnn_kv.h5')
 
 vocab = load_pickle('mov_vocab.pickle')
 w2i = load_pickle('mov_w2i.pickle')
