@@ -125,9 +125,9 @@ def vectorize(data, w2i, story_maxlen, query_maxlen):
         #     for a in answer:
         #         y[w2i[a]] = 1
         y = np.zeros(len(w2i))
-        # y[w2i[answer[0]]] = 1
-        for a in answer:
-            y[w2i[a]] = 1
+        y[w2i[answer[0]]] = 1
+        # for a in answer:
+            # y[w2i[a]] = 1
 
         S.append(s)
         Q.append(q)
@@ -249,7 +249,7 @@ def get_stop_words(freq, is_save_pickle):
     stopwords = [k for k, v in bow.items() if v >= freq]
     if is_save_pickle:
         save_pickle(stopwords, 'mov_stopwords.pickle')
-        
+
     return stopwords
 
 
