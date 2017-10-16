@@ -214,20 +214,17 @@ def vectorize_kv(kv, memory_size, w2i):
         
 # def get_kv_indices(data, kv_pairs):
 def load_kv_dataset(data, kv_pairs):
-    # kv_indices = []
     data_k, data_v = [], []
     for i, (_, q, _) in enumerate(data):
         if i%100 == 0: print(i, '/', len(data))
-        # indices = []
         k_list, v_list = [], []
         for w in q:
             if w not in stopwords:
                 for kv_ind, (k, v) in enumerate(kv_pairs):
-                    if w in (k+v):
+                    if w in (k): # # the key shares at least one word with question with F<1000
                         # indices.append(kv_ind)
                         k_list.append(k)
                         v_list.append(v)
-        # kv_indices.append(indices)
         data_k.append(k_list)
         data_v.append(v_list)
     return data_k, data_v
