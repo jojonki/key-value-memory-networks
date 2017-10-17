@@ -104,3 +104,6 @@ ENV/
 # custom
 /data
 # .*
+/saved_models/
+*.h5
+*.swp
