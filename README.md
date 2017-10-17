@@ -14,6 +14,16 @@ $ ./download.sh
 $ python train.py
 ```
 
+## Evaluate
+```
+$ python evaluate.py -m saved_keras_model_path
+```
+
+## Interactive
+```
+$ python interactive.py -m saved_keras_model_path
+```
+
 ---
 ## Reference
 See original thesis.
