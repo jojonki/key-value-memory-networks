@@ -1,14 +1,32 @@
-# from keras import backend as K
 import numpy as np
 from keras.models import load_model
 from nltk.tokenize import word_tokenize
-from process_data import find_ngrams, load_pickle, lower_list
+import argparse
+from process_data import find_ngrams, load_pickle, lower_list, load_kv_dataset, vectorize_kv
 
-mem_maxlen = 100
-query_maxlen = 21
+parser = argparse.ArgumentParser(description='')
+parser.add_argument('-m', '--model',
+                    default='demo_model_memnn_kv.h5',
+                    help='saved keras model')
+parser.add_argument('--max_mem_len',
+                    default=4,
+                    help='max the number of words in one memory')
+parser.add_argument('--max_mem_size',
+                    default=15,
+                    help='max the number of memories related one episode')
+parser.add_argument('--max_query_len',
+                    default=16,
+                    help='max the number of words in question')
+args = parser.parse_args()
+
+print(args)
+max_mem_len = args.max_mem_len
+max_mem_size = args.max_mem_size
+max_query_len = args.max_query_len
 
 print('load data...')
-model = load_model('demo_model_memnn_kv.h5')
+    
+model = load_model(args.model)
 
 vocab = load_pickle('mov_vocab.pickle')
 w2i = load_pickle('mov_w2i.pickle')
@@ -25,36 +43,16 @@ def predict(q):
 
     # vectorize a question
     vec_q = [w2i[w] for w in q_tokens if w in w2i]
-    q_pad_len = max(0, query_maxlen - len(vec_q))
+    q_pad_len = max(0, max_query_len - len(vec_q))
     vec_q += [0] * q_pad_len
     vec_q = np.array(vec_q)
     vec_q = np.reshape(vec_q, (1, len(vec_q)))
     # print('vec_q:', vec_q)
 
-    # get related kv
-    k_list, v_list = [], []
-    for w in q_tokens:
-        if w not in stopwords:
-            for kv_ind, (k, v) in enumerate(kv_pairs):
-                if w in (k+v):
-                    k_list += k
-                    v_list += v
-        else:
-            pass
-            # print(w, 'in stopwords')
-
-    def _vec_kv(data, w2i, mem_maxlen):
-        vec = [w2i[e] for e in data if e in w2i]
-        vec += [0] * max(0, mem_maxlen - len(vec))
-        vec = vec[:mem_maxlen]
-        vec = np.array(vec)
-        vec = np.reshape(vec, (1, 100))
-        
-        return vec
-    # vectroize kv
-    vec_k, vec_v = None, None
-    vec_k = _vec_kv(k_list, w2i, mem_maxlen)
-    vec_v = _vec_kv(v_list, w2i, mem_maxlen)
+    # get related kv and vectorize
+    data_k, data_v = load_kv_dataset([(None,q_tokens,None)], kv_pairs, stopwords)
+    vec_k = vectorize_kv(data_k, max_mem_len, max_mem_size, w2i)
+    vec_v = vectorize_kv(data_v, max_mem_len, max_mem_size, w2i)
 
     int_predict = model.predict([vec_k, vec_v, vec_q], batch_size=1, verbose=0)     
     # print('q:',q)

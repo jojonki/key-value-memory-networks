@@ -134,7 +134,7 @@ def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
     with open(path, 'r') as f:
         lines = f.readlines()
         for i, l in enumerate(lines):
-            if i % 500 == 0: print('load_kv_pairs:', i, '/', len(lines))
+            # if i % 500 == 0: print('load_kv_pairs:', i, '/', len(lines))
             if l == '\n': continue
             turn, left = l.rstrip().split(' ', 1)
             for r in rel:
@@ -174,7 +174,7 @@ def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
 def vectorize_kv(data, max_mem_len, max_mem_size, w2i):
     all_vec_list = []
     for i, kv_list in enumerate(data):
-        if i % 5000 == 0: print('vectorize_kv:', i, '/', len(data))
+        # if i % 5000 == 0: print('vectorize_kv:', i, '/', len(data))
         vec_list = []
         for kv in kv_list:
             vec = [w2i[e] for e in kv if e in w2i]
@@ -204,7 +204,7 @@ def vectorize_kv(data, max_mem_len, max_mem_size, w2i):
 #     return data_k, data_v
         
 # def get_kv_indices(data, kv_pairs):
-def load_kv_dataset(data, kv_pairs):
+def load_kv_dataset(data, kv_pairs, stopwords):
     data_k, data_v = [], []
     for i, (_, q, _) in enumerate(data):
         if i%100 == 0: print('load_kv_dataset:', i, '/', len(data))
@@ -219,7 +219,7 @@ def load_kv_dataset(data, kv_pairs):
         data_k.append(k_list)
         data_v.append(v_list)
         # if i%100 == 0:
-        print('k:', k_list, '\nv:', v_list)
+        # print('k:', k_list, '\nv:', v_list)
         break
     return data_k, data_v
 
