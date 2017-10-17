@@ -103,41 +103,29 @@ def load_task(fpath, token_dict=None, max_token_length=None):
 
     return data
 
-def vectorize(data, w2i, story_maxlen, query_maxlen):
-    S, Q, A = [], [], []
+def vectorize(data, w2i, query_maxlen):#, w2i_label):
+    Q, A = [], []
     for story, question, answer in data:
-        # Vectroize story
-        s_pad_len = max(0, story_maxlen - len(story))
-        s = [w2i[w] for w in story] + [0] * s_pad_len
-
         # Vectroize question
-        q_pad_len = max(0, query_maxlen - len(question))
-        q = [w2i[w] for w in question] + [0] * q_pad_len
+        q = [w2i[w] for w in question if w in w2i]
         q = q[:query_maxlen]
+        q_pad_len = max(0, query_maxlen - len(q))
+        q += [0] * q_pad_len
 
-        # Vectroize answer
-        # if entities:
-        #     y = np.zeros(len(entities), dtype='byte')
-        #     for a in answer:
-        #         y[e2i[a]] = 1
-        # else:
-        #     y = np.zeros(len(w2i) + 1) # +1 for nil word
-        #     for a in answer:
-        #         y[w2i[a]] = 1
+#         y = np.zeros(len(w2i_label))
+#         y[w2i_label[answer[0]]] = 1
         y = np.zeros(len(w2i))
         y[w2i[answer[0]]] = 1
-        # for a in answer:
-            # y[w2i[a]] = 1
+#         for a in answer:
+#             y[w2i[a]] = 1
 
-        S.append(s)
         Q.append(q)
         A.append(y)
     
-    S = np.array(S, dtype=np.uint16)
-    Q = np.array(Q, dtype=np.uint16)
+    Q = np.array(Q, dtype=np.uint32)
     A = np.array(A, dtype='byte')
 
-    return S, Q, A
+    return Q, A
 
 def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
     """load key-value paris from KB"""
@@ -183,21 +171,24 @@ def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
 
     return kv_pairs
 
-def vectorize_kv(kv, memory_size, w2i):
-    vec_list = []
-    # w2i['directed_by'] = len(w2i)
-    # w2i['written_by'] = len(w2i)
-    # w2i['starred_actors'] = len(w2i)
-    # w2i['release_year'] = len(w2i)
-    # w2i['has_genre'] = len(w2i)
-    # w2i['has_tags'] = len(w2i)
-    # w2i['has_plot'] = len(w2i)
-    for data in kv:
-        vec = [w2i[e] for e in data if e in w2i]
-        mem_pad_len = max(0, memory_size - len(vec))
-        vec_list.append(vec + [0] * mem_pad_len)
+def vectorize_kv(data, max_mem_len, max_mem_size, w2i):
+    all_vec_list = []
+    for i, kv_list in enumerate(data):
+        if i % 5000 == 0: print(i, '/', len(data))
+        vec_list = []
+        for kv in kv_list:
+            vec = [w2i[e] for e in kv if e in w2i]
+            vec = vec[:max_mem_len]
+            mem_pad_len = max(0, max_mem_len - len(vec))
+            vec = vec + [0] * mem_pad_len
+            vec_list.append(vec)
+        vec_list = vec_list[:max_mem_size]
+        mem_pad_size = max(0, max_mem_size - len(vec_list))
+        for _ in range(mem_pad_size):
+            vec_list.append([0] * max_mem_len)
+        all_vec_list.append(vec_list)
 
-    return np.array(vec_list, dtype=np.uint16)
+    return np.array(all_vec_list, dtype=np.uint32)
 
 # def get_related_kv(kv_indices, kv_pairs):
 #     print('get related key-values...')
@@ -227,6 +218,9 @@ def load_kv_dataset(data, kv_pairs):
                         v_list.append(v)
         data_k.append(k_list)
         data_v.append(v_list)
+        # if i%100 == 0:
+        print('k:', k_list, '\nv:', v_list)
+        break
     return data_k, data_v
 
 def get_stop_words(freq, is_save_pickle):
@@ -290,11 +284,11 @@ if __name__ == '__main__':
     # test_kv_indices = get_kv_indices(test_data, kv_pairs)
     # save_pickle(test_kv_indices, 'mov_test_kv_indices.pickle')
     train_k, train_v = load_kv_dataset(train_data, kv_pairs)
-    save_pickle(train_k, 'mov_train_k.pickle')
-    save_pickle(train_v, 'mov_train_v.pickle')
-    test_k, test_v = load_kv_dataset(test_data, kv_pairs)
-    save_pickle(test_k, 'mov_test_k.pickle')
-    save_pickle(test_v, 'mov_test_v.pickle')
+    # save_pickle(train_k, 'mov_train_k.pickle')
+    # save_pickle(train_v, 'mov_train_v.pickle')
+    # test_k, test_v = load_kv_dataset(test_data, kv_pairs)
+    # save_pickle(test_k, 'mov_test_k.pickle')
+    # save_pickle(test_v, 'mov_test_v.pickle')
     
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
     # data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')
