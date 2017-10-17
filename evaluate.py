@@ -23,12 +23,12 @@ max_mem_size = args.max_mem_size
 max_query_len = args.max_query_len
 model_name = args.model
 
-test_data = load_pickle('mov_task1_qa_pipe_test.pickle')
-kv_pairs  = load_pickle('mov_kv_pairs.pickle')
-test_k    = np.array(load_pickle('mov_test_k.pickle'))
-test_v    = np.array(load_pickle('mov_test_v.pickle'))
+test_data = load_pickle('pickle/mov_task1_qa_pipe_test.pickle')
+kv_pairs  = load_pickle('pickle/mov_kv_pairs.pickle')
+test_k    = np.array(load_pickle('pickle/mov_test_k.pickle'))
+test_v    = np.array(load_pickle('pickle/mov_test_v.pickle'))
 
-vocab = load_pickle('mov_vocab.pickle')
+vocab = load_pickle('pickle/mov_vocab.pickle')
 vocab_size = len(vocab)
 
 print('-')
@@ -37,8 +37,8 @@ print('Number of test data:', len(test_data))
 print('-')
 print('Here\'s what a "data" tuple looks like (input, query, answer):')
 print(test_data[0])
-w2i = load_pickle('mov_w2i.pickle')
-i2w = load_pickle('mov_i2w.pickle')
+w2i = load_pickle('pickle/mov_w2i.pickle')
+i2w = load_pickle('pickle/mov_i2w.pickle')
 
 queries_test, answers_test = vectorize(test_data, w2i, max_query_len)
 vec_test_k = vectorize_kv(test_k, max_mem_len, max_mem_size, w2i)

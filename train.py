@@ -16,14 +16,14 @@ if is_babi:
     test_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt', is_babi)
 else:
     # mem_maxlen         = 100 # 1つのエピソードに関連しているKVの数に対する制限
-    train_data         = load_pickle('mov_task1_qa_pipe_train.pickle')
-    test_data          = load_pickle('mov_task1_qa_pipe_test.pickle')
-    kv_pairs           = load_pickle('mov_kv_pairs.pickle')
-    train_k            = np.array(load_pickle('mov_train_k.pickle'))
-    train_v            = np.array(load_pickle('mov_train_v.pickle'))
-    test_k             = np.array(load_pickle('mov_test_k.pickle'))
-    test_v             = np.array(load_pickle('mov_test_v.pickle'))
-    entities           = load_pickle('mov_entities.pickle')
+    train_data         = load_pickle('pickle/mov_task1_qa_pipe_train.pickle')
+    test_data          = load_pickle('pickle/mov_task1_qa_pipe_test.pickle')
+    kv_pairs           = load_pickle('pickle/mov_kv_pairs.pickle')
+    train_k            = np.array(load_pickle('pickle/mov_train_k.pickle'))
+    train_v            = np.array(load_pickle('pickle/mov_train_v.pickle'))
+    test_k             = np.array(load_pickle('pickle/mov_test_k.pickle'))
+    test_v             = np.array(load_pickle('pickle/mov_test_v.pickle'))
+    entities           = load_pickle('pickle/mov_entities.pickle')
     entity_size        = len(entities)
 
 # TODO
@@ -57,8 +57,8 @@ stopwords = load_pickle('mov_stopwords.pickle')
 # i2w = dict((i, c) for i, c in enumerate(vocab))
 # save_pickle(w2i, 'mov_w2i.pickle')
 # save_pickle(i2w, 'mov_i2w.pickle')
-w2i = load_pickle('mov_w2i.pickle')
-i2w = load_pickle('mov_i2w.pickle')
+w2i = load_pickle('pickle/mov_w2i.pickle')
+i2w = load_pickle('pickle/mov_i2w.pickle')
 queries_train, answers_train = vectorize(train_data, w2i, query_maxlen)
 queries_test, answers_test = vectorize(test_data, w2i, query_maxlen)
 

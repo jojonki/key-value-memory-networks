@@ -28,11 +28,11 @@ print('load data...')
     
 model = load_model(args.model)
 
-vocab = load_pickle('mov_vocab.pickle')
-w2i = load_pickle('mov_w2i.pickle')
-i2w = load_pickle('mov_i2w.pickle')
-kv_pairs = load_pickle('mov_kv_pairs.pickle')
-stopwords = load_pickle('mov_stopwords.pickle')
+vocab = load_pickle('pickle/mov_vocab.pickle')
+w2i = load_pickle('pickle/mov_w2i.pickle')
+i2w = load_pickle('pickle/mov_i2w.pickle')
+kv_pairs = load_pickle('pickle/mov_kv_pairs.pickle')
+stopwords = load_pickle('pickle/mov_stopwords.pickle')
 
 def predict(q):
     # tokenize a question
