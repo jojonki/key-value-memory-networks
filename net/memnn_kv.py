@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from keras import backend as K
 from keras.models import Sequential, Model
 from keras.layers.embeddings import Embedding
@@ -9,7 +7,6 @@ from keras.utils.data_utils import get_file
 from keras.preprocessing.sequence import pad_sequences
 from functools import reduce
 from keras import metrics
-import numpy as np
 
 def MemNNKV(mem_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size):
     print('mem_size:', mem_size)
