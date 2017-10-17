@@ -1,12 +1,7 @@
 from keras import backend as K
-from keras.models import Sequential, Model
+from keras.models import Model
 from keras.layers.embeddings import Embedding
-from keras.layers import Input, Activation, Dense, Lambda, Permute, Dropout, add, multiply, dot, concatenate
-from keras.layers import LSTM
-from keras.utils.data_utils import get_file
-from keras.preprocessing.sequence import pad_sequences
-from functools import reduce
-from keras import metrics
+from keras.layers import Input, Activation, Dense, Lambda, Permute, Dropout, add, multiply, dot
 
 def MemNNKV(mem_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size):
     print('mem_size:', mem_size)
@@ -20,49 +15,38 @@ def MemNNKV(mem_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size)
     key = Input((mem_size, mem_len,), name='Key_Input')
     val = Input((mem_size, mem_len,), name='Val_Input')
     question = Input((query_maxlen,), name='Question_Input')
-    print('key:', key.shape)
+    # print('key:', key.shape)
 
-    # encoders
-    # memory encoders
-    # output: (None, mem_size, embd_size)
     shared_embd_A = Embedding(input_dim=vocab_size, output_dim=embd_size)
 
-    # embed the question into a sequence of vectors
-    # output: (None, query_maxlen, embd_size)
-    question_encoder = Sequential(name='Question_Encoder')
-    question_encoder.add(shared_embd_A)
-#     question_encoder.add(Dropout(0.3))
-
-    # encode input sequence and questions (which are indices)
-    # to sequences of dense vectors
     key_encoded = shared_embd_A(key) # (None, mem_size, mem_len, embd_size)
-    print('key_encoded', key_encoded.shape)
+    # print('key_encoded', key_encoded.shape)
     key_encoded = Lambda(lambda x: K.sum(x, axis=2)) (key_encoded) #(None, mem_size, embd_size)
-    print('key_encoded', key_encoded.shape)
+    # print('key_encoded', key_encoded.shape)
     val_encoded = shared_embd_A(val) # (None, mem_size, embd_size)
     val_encoded = Lambda(lambda x: K.sum(x, axis=2)) (val_encoded)
     
-    question_encoded = question_encoder(question) # (None, query_max_len, embd_size)
+    question_encoded = shared_embd_A(question) # (None, query_max_len, embd_size)
 #     question_encoded = Lambda(lambda x: K.sum(x, axis=1)) (val_encoded)
     question_encoded = Lambda(lambda x: K.sum(x, axis=1)) (question_encoded) #(None, embd_size)
-    print('q_encoded', question_encoded.shape)
+    # print('q_encoded', question_encoded.shape)
     q= question_encoded
     for h in range(1):
-        print('---hop', h)
+        # print('---hop', h)
         ph = dot([q, key_encoded], axes=(1, 2))  # (None, mem_size)
-        print('ph', ph.shape)
+        # print('ph', ph.shape)
         ph = Activation('softmax')(ph)
         o = multiply([ph, Permute((2, 1))(val_encoded)]) # (None, embd_size, mem_size)
-        print('o', o.shape)
+        # print('o', o.shape)
         o = Lambda(lambda x: K.sum(x, axis=2))(o) # (None, embd_size)
-        print('o', o.shape)
+        # print('o', o.shape)
         R = Dense(embd_size, input_shape=(embd_size,), name='R_Dense_h' + str(h+1))
         q = R(add([q,  o])) # (None, embd_size)
-        print('q', q.shape)
+        # print('q', q.shape)
 
 #     answer = Dense(answer_size, name='last_Dense')(q) #(None, answer_size)
     answer = Dense(vocab_size, name='last_Dense')(q) #(None, vocab_size)
-    print('answer.shape', answer.shape)
+    # print('answer.shape', answer.shape)
     preds = Activation('softmax')(answer)
     
     # build the final model
