@@ -33,7 +33,7 @@ else:
 # for _, q, answer in train_data + test_data:
 #         vocab |= set(q + answer)
 #         vocab = sorted(vocab)
-vocab = load_pickle('mov_vocab.pickle')
+vocab = load_pickle('pickle/mov_vocab.pickle')
 vocab_size = len(vocab)
 
 story_maxlen = max(map(len, (x for x, _, _ in train_data + test_data)))
@@ -52,7 +52,7 @@ print('-')
 print('Vectorizing the word sequences...')
 
 print('Number of entities', len(entities))
-stopwords = load_pickle('mov_stopwords.pickle')
+stopwords = load_pickle('pickle/mov_stopwords.pickle')
 # w2i = dict((c, i) for i, c in enumerate(vocab))
 # i2w = dict((i, c) for i, c in enumerate(vocab))
 # save_pickle(w2i, 'mov_w2i.pickle')

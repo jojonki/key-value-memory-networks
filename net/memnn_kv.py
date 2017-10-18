@@ -31,7 +31,7 @@ def MemNNKV(mem_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size)
     question_encoded = Lambda(lambda x: K.sum(x, axis=1)) (question_encoded) #(None, embd_size)
     # print('q_encoded', question_encoded.shape)
     q= question_encoded
-    for h in range(1):
+    for h in range(2):
         # print('---hop', h)
         ph = dot([q, key_encoded], axes=(1, 2))  # (None, mem_size)
         # print('ph', ph.shape)
@@ -51,5 +51,5 @@ def MemNNKV(mem_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size)
     
     # build the final model
     model = Model([key, val, question], preds)
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy']) 
+    model.compile(optimizer='adagrad', loss='categorical_crossentropy', metrics=['accuracy']) 
     return model
