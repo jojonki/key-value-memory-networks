@@ -124,7 +124,7 @@ class History(Callback):
 
 history = History()
 callbacks_list = [checkpoint, history]
-memnn_kv.fit([vec_train_k[:10], vec_train_v[:10], queries_train[:10]], answers_train[:10],
+memnn_kv.fit([vec_train_k, vec_train_v, queries_train], answers_train,
           batch_size=64,
           epochs=30,
           callbacks=callbacks_list,
