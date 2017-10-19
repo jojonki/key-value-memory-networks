@@ -2,6 +2,7 @@ from keras import backend as K
 from keras.models import Model
 from keras.layers.embeddings import Embedding
 from keras.layers import Input, Activation, Dense, Lambda, Permute, Dropout, add, multiply, dot
+from keras.layers.normalization import BatchNormalization
 
 def MemNNKV(mem_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size):
     print('mem_size:', mem_size)
