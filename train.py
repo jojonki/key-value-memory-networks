@@ -106,21 +106,15 @@ model_path = 'saved_models/' + now + '_kvnn-weights-{epoch:02d}-{loss:.4f}.hdf5'
 checkpoint = ModelCheckpoint(model_path, monitor='loss', verbose=1, save_best_only=True, mode='min')
 log_path = 'result/' + now + '_emb{}-memlen{}-memsize{}'.format(embd_size, max_mem_len, max_mem_size) + '.json'
 class History(Callback):
-    def on_epoch_begin(self, epoch, logs={}):
-        self.accs = []
-        self.losses = []
-        self.val_accs = []
-        self.val_losses = []
+    def on_train_begin(self, logs={}):
+        self.result = []
 
     def on_epoch_end(self, epoch, logs={}):
-        self.accs.append(logs.get('acc'))
-        self.losses.append(logs.get('loss'))
-        self.val_accs.append(logs.get('val_accs'))
-        self.val_losses.append(logs.get('val_loss'))
         global log_path
         logs['epoch'] = epoch
-        with open(log_path, 'a') as f:
-            f.write(json.dumps(logs) + '\n')
+        self.result.append(logs)
+        with open(log_path, 'wt') as f:
+            f.write(json.dumps(self.result, indent=4, sort_keys=True))
 
 history = History()
 callbacks_list = [checkpoint, history]
@@ -129,7 +123,4 @@ memnn_kv.fit([vec_train_k, vec_train_v, queries_train], answers_train,
           epochs=30,
           callbacks=callbacks_list,
           validation_data=([vec_test_k, vec_test_v, queries_test], answers_test))
-# print(history.accs)
-
-# print('save model')
-# memnn_kv.save('model_memnn_kv.h5')
+# print(json.dumps(history.result))
