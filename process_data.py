@@ -129,12 +129,13 @@ def vectorize(data, w2i, query_maxlen):#, w2i_label):
 
 def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
     """load key-value paris from KB"""
-    rel = ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'has_plot'] # TODO hard code
+    # rel = ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'has_plot', 'in_language'] # TODO hard code
+    rel = ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'in_language'] # TODO hard code, not use has_plot tag
     kv_pairs = []
     with open(path, 'r') as f:
         lines = f.readlines()
         for i, l in enumerate(lines):
-            if i % 1000 == 0: print('load_kv_pairs:', i, '/', len(lines))
+            if i % 5000 == 0: print('load_kv_pairs:', i, '/', len(lines))
             if l == '\n': continue
             turn, left = l.rstrip().split(' ', 1)
             for r in rel:
@@ -144,46 +145,16 @@ def load_kv_pairs(path, token_dict, max_token_length, is_save_pickle=False):
                     lhs = tmp[0].rstrip().lower()
                     k.append(lhs)
                     k.append(r)
-                    # hoge = tmp[1].strip().lower()
-                    # if 'bill nighy' not in hoge and 'Dance, Girl' not in hoge: continue
-                    # if 'Dance, Girl' not in hoge: continue
-                    # if 'a boy and his dog' not in hoge: continue
-                    # print('line:', l.rstrip())
-                    # vals = word_tokenize(tmp[1].strip().lower())#.split(' ')
                     rhs = tmp[1].strip().lower()
-                    if r == 'has_plot':
-                        tokenized_rhs = word_tokenize(rhs)
-                        kv_pairs.append((k, tokenized_rhs))
-                        # print((k, tokenized_rhs))
+                    vals = rhs.split(', ')
+                    for v in vals:
+                        kv_pairs.append((k, [v]))
 
-                        k_r = tokenized_rhs + ['!'+r]
+                        # double KB by considering reversed relation. see 3.2
+                        k_r = [v, '!'+r]
                         v_r = [lhs]
                         kv_pairs.append((k_r, v_r))
-                        # print((k_r, v_r))
-                    else:
-                        vals = rhs.split(', ')
-                        for v in vals:
-                            kv_pairs.append((k, [v]))
-                            # print((k, [v]))
 
-                            k_r = [v, '!'+r]
-                            v_r = [lhs]
-                            kv_pairs.append((k_r, v_r))
-                            # print((k_r, v_r))
-
-                    # double KB by considering reversed relation. see 3.2
-                    # if r == 'has_plot':
-                    #     kv_pairs.append((vals + ['!'+r], [lhs]))
-                    # else:
-                    # for v in vals:
-                    #     if r == 'has_plot':
-                    #         k_r = word_tokenize(v) + ['!'+r]
-                    #     else:
-                    #         k_r = [v, '!'+r]
-                    #     v_r = [lhs]
-                    #     kv_pairs.append((k_r, v_r))
-                    #     print((k_r, v_r))
-                        
                     break
 
     if is_save_pickle:
@@ -195,9 +166,8 @@ def vectorize_kv(data, max_mem_len, max_mem_size, w2i):
     all_vec_list = []
     for i, kv_list in enumerate(data):
         if i % 5000 == 0: print('vectorize_kv:', i, '/', len(data))
-        # print('vectorize_kv:', i, '/', len(data), len(kv_list))
         vec_list = []
-        for kv in kv_list[:max_mem_len+100]:
+        for kv in kv_list[:max_mem_len+100]: #TODO: +100 for unknown entity in w2i
             vec = [w2i[e] for e in kv if e in w2i]
             # vec = [w2i[e] for e in kv]
             vec = vec[:max_mem_len]
@@ -227,13 +197,13 @@ def load_kv_dataset(data, kv_pairs, stopwords):
         if len(k_list) == 0:
             print('==================no kv!')
             print(q)
-        if len(k_list) > 1000:
+        if len(k_list) > 100:
+            print('==================too many kv! > 100')
             print(q)
             print(len(k_list))
         data_k.append(k_list)
         data_v.append(v_list)
-        # if i%100 == 0:
-        # print('k:', k_list, '\nv:', v_list)
+        
     return data_k, data_v
 
 def get_stop_words(freq, token_dict, max_token_length, is_save_pickle):
@@ -260,11 +230,11 @@ def get_stop_words(freq, token_dict, max_token_length, is_save_pickle):
 
 if __name__ == '__main__':
     # --- entities
-    # entities = load_pickle('pickle/mov_entities.pickle')
+    entities = load_pickle('pickle/mov_entities.pickle')
     # entities = load_entities('./data/movieqa/knowledge_source/entities.txt')
     # save_pickle(entities, 'mov_entities.pickle')
     # max_entity_length = max(map(len, (e.split(' ') for e in entities))) # for searching n-gram
-    vocab = load_pickle('pickle/mov_vocab.pickle')
+    # vocab = load_pickle('pickle/mov_vocab.pickle')
 
     # --- movie-qa train/test dataset
     # train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt', vocab, 100)
@@ -276,16 +246,18 @@ if __name__ == '__main__':
     print(len(train_data))
 
     # -- update vocab and w2i/i2w
-    # vocab = set(entities +  ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'has_plot'] )
-    # for story, q, answer in train_data + test_data:
-    #     vocab |= set(story + q + answer)
-    # vocab = sorted(vocab)
-    # vocab = load_pickle('pickle/mov_vocab.pickle')
+    # vocab = set(entities 
+    #             + ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'in_language'] 
+    #             + ['!directed_by', '!written_by', '!starred_actors', '!release_year', '!has_genre', '!has_tags', '!in_language'] )
+    # for _, q, answer in train_data + test_data:
+    #     vocab |= set(q + answer)
+    # vocab = sorted(list(vocab))
     # w2i = dict((c, i) for i, c in enumerate(vocab, 1))
     # i2w = dict((i, c) for i, c in enumerate(vocab, 1))
     # save_pickle(vocab, 'vocab.pickle')
     # save_pickle(w2i, 'w2i.pickle')
     # save_pickle(i2w, 'i2w.pickle')
+    # vocab = load_pickle('pickle/mov_vocab.pickle')
     
     # generate kv_pairs
     # kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', vocab,  100, True)
@@ -293,15 +265,15 @@ if __name__ == '__main__':
     # vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
     
     # generate stopwords
-    stopwords = get_stop_words(1000, vocab, 100, True)
-    # stopwords = load_pickle('pickle/mov_stopwords.pickle')
+    # stopwords = get_stop_words(1000, vocab, 100, True)
+    stopwords = load_pickle('pickle/mov_stopwords.pickle')
 
-    # train_k, train_v = load_kv_dataset(train_data, kv_pairs, stopwords)
-    # save_pickle(train_k, 'pickle/mov_train_k.pickle')
-    # save_pickle(train_v, 'pickle/mov_train_v.pickle')
-    # test_k, test_v = load_kv_dataset(test_data, kv_pairs, stopwords)
-    # save_pickle(test_k, 'pickle/mov_test_k.pickle')
-    # save_pickle(test_v, 'pickle/mov_test_v.pickle')
+    train_k, train_v = load_kv_dataset(train_data, kv_pairs, stopwords)
+    save_pickle(train_k, 'pickle/mov_train_k.pickle')
+    save_pickle(train_v, 'pickle/mov_train_v.pickle')
+    test_k, test_v = load_kv_dataset(test_data, kv_pairs, stopwords)
+    save_pickle(test_k, 'pickle/mov_test_k.pickle')
+    save_pickle(test_v, 'pickle/mov_test_v.pickle')
     
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
     # data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')
