@@ -4,8 +4,9 @@ from functools import reduce
 from itertools import chain
 import numpy as np
 import datetime
+import json
 
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, Callback
 
 from process_data import load_entities, save_pickle, load_pickle, load_kv_pairs, lower_list, vectorize, vectorize_kv, load_kv_dataset
 from net.memnn_kv import MemNNKV
@@ -15,7 +16,6 @@ if is_babi:
     train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt', is_babi)
     test_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt', is_babi)
 else:
-    # mem_maxlen         = 100 # 1つのエピソードに関連しているKVの数に対する制限
     train_data         = load_pickle('pickle/mov_task1_qa_pipe_train.pickle')
     test_data          = load_pickle('pickle/mov_task1_qa_pipe_test.pickle')
     kv_pairs           = load_pickle('pickle/mov_kv_pairs.pickle')
@@ -28,13 +28,29 @@ else:
 
 # TODO
 # vocab = set(entities 
-#             + ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'has_plot'] 
-#             + ['!directed_by', '!written_by', '!starred_actors', '!release_year', '!has_genre', '!has_tags', '!has_plot'] )
+#             + ['directed_by', 'written_by', 'starred_actors', 'release_year', 'has_genre', 'has_tags', 'in_language'] 
+#             + ['!directed_by', '!written_by', '!starred_actors', '!release_year', '!has_genre', '!has_tags', '!in_language'] )
 # for _, q, answer in train_data + test_data:
 #         vocab |= set(q + answer)
 #         vocab = sorted(vocab)
 vocab = load_pickle('pickle/mov_vocab.pickle')
 vocab_size = len(vocab)
+
+train_indices, test_indices = [], []
+for i, k in enumerate(train_k):
+    if len(k) != 0:
+        train_indices.append(i)
+for i, k in enumerate(test_k):
+    if len(k) != 0:
+        test_indices.append(i)
+print('before filter:', len(train_data), len(test_data))
+train_data = [train_data[i] for i in train_indices]
+train_k = [train_k[i] for i in train_indices]
+train_v = [train_v[i] for i in train_indices]
+test_data = [test_data[i] for i in test_indices]
+test_k = [test_k[i] for i in test_indices]
+test_v = [test_v[i] for i in test_indices]
+print('after filter:', len(train_data), len(test_data))
 
 story_maxlen = max(map(len, (x for x, _, _ in train_data + test_data)))
 query_maxlen = max(map(len, (x for _, x, _ in train_data + test_data)))
@@ -72,8 +88,8 @@ print('answers_train shape:', answers_train.shape)
 print('answers_test shape:', answers_test.shape)
 
 
-max_mem_len = 4
-max_mem_size = 15
+max_mem_len = 3
+max_mem_size = 35
 vec_train_k = vectorize_kv(train_k, max_mem_len, max_mem_size, w2i)
 vec_train_v = vectorize_kv(train_v, max_mem_len, max_mem_size, w2i)
 vec_test_k = vectorize_kv(test_k, max_mem_len, max_mem_size, w2i)
@@ -81,18 +97,39 @@ vec_test_v = vectorize_kv(test_v, max_mem_len, max_mem_size, w2i)
 print('vec_k', vec_train_k.shape)
 print('vec_v', vec_train_v.shape)
 
-embd_size = 200
+embd_size = 500
 memnn_kv =MemNNKV(max_mem_len, max_mem_size, query_maxlen, vocab_size, embd_size, None)
 print(memnn_kv.summary())
+
 now = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
 model_path = 'saved_models/' + now + '_kvnn-weights-{epoch:02d}-{loss:.4f}.hdf5'
 checkpoint = ModelCheckpoint(model_path, monitor='loss', verbose=1, save_best_only=True, mode='min')
-callbacks_list = [checkpoint]
-memnn_kv.fit([vec_train_k, vec_train_v, queries_train], answers_train,
-          batch_size=32,
+log_path = 'result/' + now + '_emb{}-memlen{}-memsize{}'.format(embd_size, max_mem_len, max_mem_size) + '.json'
+class History(Callback):
+    def on_epoch_begin(self, epoch, logs={}):
+        self.accs = []
+        self.losses = []
+        self.val_accs = []
+        self.val_losses = []
+
+    def on_epoch_end(self, epoch, logs={}):
+        self.accs.append(logs.get('acc'))
+        self.losses.append(logs.get('loss'))
+        self.val_accs.append(logs.get('val_accs'))
+        self.val_losses.append(logs.get('val_loss'))
+        global log_path
+        logs['epoch'] = epoch
+        with open(log_path, 'a') as f:
+            f.write(json.dumps(logs) + '\n')
+
+history = History()
+callbacks_list = [checkpoint, history]
+memnn_kv.fit([vec_train_k[:10], vec_train_v[:10], queries_train[:10]], answers_train[:10],
+          batch_size=64,
           epochs=30,
           callbacks=callbacks_list,
           validation_data=([vec_test_k, vec_test_v, queries_test], answers_test))
+# print(history.accs)
 
 # print('save model')
 # memnn_kv.save('model_memnn_kv.h5')
