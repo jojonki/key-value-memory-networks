@@ -38,10 +38,10 @@ vocab_size = len(vocab)
 
 train_indices, test_indices = [], []
 for i, k in enumerate(train_k):
-    if len(k) != 0:
+    if len(k) != 0 and len(k) < 100:
         train_indices.append(i)
 for i, k in enumerate(test_k):
-    if len(k) != 0:
+    if len(k) != 0 and len(k) < 100:
         test_indices.append(i)
 print('before filter:', len(train_data), len(test_data))
 train_data = [train_data[i] for i in train_indices]
@@ -89,7 +89,7 @@ print('answers_test shape:', answers_test.shape)
 
 
 max_mem_len = 3
-max_mem_size = 35
+max_mem_size = 100
 vec_train_k = vectorize_kv(train_k, max_mem_len, max_mem_size, w2i)
 vec_train_v = vectorize_kv(train_v, max_mem_len, max_mem_size, w2i)
 vec_test_k = vectorize_kv(test_k, max_mem_len, max_mem_size, w2i)
