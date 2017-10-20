@@ -56,7 +56,7 @@ def MemNNKV(mem_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size)
 
 #     answer = Dense(answer_size, name='last_Dense')(q) #(None, answer_size)
 #     answer = Dense(vocab_size, name='last_Dense', kernel_regularizer=regularizers.l2(0.01))(q) #(None, vocab_size)
-    answer = Dense(vocab_size, kernel_regularizer=regularizers.l2(0.01), name='last_Dense')(q) #(None, vocab_size)
+    answer = Dense(answer_size, kernel_regularizer=regularizers.l2(0.01), name='last_Dense')(q) #(None, vocab_size)
     answer = BatchNormalization()(answer)
     # print('answer.shape', answer.shape)
     preds = Activation('softmax')(answer)
