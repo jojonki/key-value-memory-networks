@@ -3,6 +3,7 @@ from keras.models import Model
 from keras.layers.embeddings import Embedding
 from keras.layers import Input, Activation, Dense, Lambda, Permute, Dropout, add, multiply, dot
 from keras.layers.normalization import BatchNormalization
+from keras import regularizers
 
 def MemNNKV(mem_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size):
     print('mem_size:', mem_size)
@@ -48,14 +49,14 @@ def MemNNKV(mem_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size)
         o = Lambda(lambda x: K.sum(x, axis=2))(o) # (None, embd_size)
         # print('o', o.shape)
 #         R = Dense(embd_size, input_shape=(embd_size,), name='R_Dense_h' + str(h+1), kernel_regularizer=regularizers.l2(0.01))
-        R = Dense(embd_size, input_shape=(embd_size,), name='R_Dense_h' + str(h+1))
+        R = Dense(embd_size, input_shape=(embd_size,), kernel_regularizer=regularizers.l2(0.01), name='R_Dense_h' + str(h+1))
         q = R(add([q,  o])) # (None, embd_size)
         q = BatchNormalization()(q)
         # print('q', q.shape)
 
 #     answer = Dense(answer_size, name='last_Dense')(q) #(None, answer_size)
 #     answer = Dense(vocab_size, name='last_Dense', kernel_regularizer=regularizers.l2(0.01))(q) #(None, vocab_size)
-    answer = Dense(vocab_size, name='last_Dense')(q) #(None, vocab_size)
+    answer = Dense(vocab_size, kernel_regularizer=regularizers.l2(0.01), name='last_Dense')(q) #(None, vocab_size)
     answer = BatchNormalization()(answer)
     # print('answer.shape', answer.shape)
     preds = Activation('softmax')(answer)
