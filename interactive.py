@@ -29,10 +29,10 @@ print('load data...')
 model = load_model(args.model)
 
 vocab = load_pickle('pickle/mov_vocab.pickle')
-# w2i = load_pickle('pickle/mov_w2i.pickle')
-# i2w = load_pickle('pickle/mov_i2w.pickle')
-w2i = load_pickle('pickle/mov_w2i_label.pickle')
-i2w = load_pickle('pickle/mov_i2w_label.pickle')
+w2i = load_pickle('pickle/mov_w2i.pickle')
+i2w = load_pickle('pickle/mov_i2w.pickle')
+w2i_label = load_pickle('pickle/mov_w2i_label.pickle')
+i2w_label = load_pickle('pickle/mov_i2w_label.pickle')
 kv_pairs = load_pickle('pickle/mov_kv_pairs.pickle')
 stopwords = load_pickle('pickle/mov_stopwords.pickle')
 
@@ -60,7 +60,7 @@ def predict(q):
 
     int_predict = model.predict([vec_k, vec_v, vec_q], batch_size=1, verbose=0)     
     # print('q:',q)
-    print('A:', i2w[np.argmax(int_predict[0])])
+    print('A:', i2w_label[np.argmax(int_predict[0])])
 
 while True:
     q = input("Question: ")

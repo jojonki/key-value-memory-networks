@@ -35,12 +35,6 @@ i2w = load_pickle('pickle/mov_i2w.pickle')
 w2i_label = load_pickle('pickle/mov_w2i_label.pickle')
 i2w_label = load_pickle('pickle/mov_i2w_label.pickle')
 
-print('-')
-print('Vocab size:', vocab_size, 'unique words')
-print('Number of test data:', len(test_data))
-print('-')
-print('Here\'s what a "data" tuple looks like (input, query, answer):')
-print(test_data[0])
 
 queries_test, answers_test = vectorize(test_data, w2i, max_query_len, w2i_label)
 vec_test_k = vectorize_kv(test_k, max_mem_len, max_mem_size, w2i)
@@ -50,3 +44,16 @@ model = load_model(model_name)
 ret = model.evaluate([vec_test_k, vec_test_v, queries_test], answers_test, verbose=1)
 print('=====result=====')
 print('loss: {:.5f}, acc: {:.5f}'.format(ret[0], ret[1]))
+
+print('=====wrong examples=====')
+pred = model.predict([vec_test_k, vec_test_v, queries_test], batch_size=32, verbose=1)
+wrong_ct = 0
+for i, (p, a) in enumerate(zip(pred, answers_test)):
+    p_id = np.argmax(p)
+#     a_ids = [i for i, aid in enumerate(a) if aid == 1 ]
+#     if p_id not in a_ids:
+    if a[p_id] == 0:
+        wrong_ct += 1
+print('')
+n_data = len(answers_test)
+print('acc:', (n_data-wrong_ct)/n_data, '=', wrong_ct, '/', n_data)
