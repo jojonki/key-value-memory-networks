@@ -2,17 +2,17 @@ import numpy as np
 from keras.models import load_model
 from nltk.tokenize import word_tokenize
 import argparse
-from process_data import find_ngrams, load_pickle, lower_list, load_kv_dataset, vectorize_kv
+from process_data import find_ngrams, load_pickle, lower_list, load_kv_dataset, vectorize, vectorize_kv
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-m', '--model',
-                    default='demo_model_memnn_kv.h5',
+                    required=True,
                     help='saved keras model')
 parser.add_argument('--max_mem_len',
-                    default=4,
+                    default=3,
                     help='max the number of words in one memory')
 parser.add_argument('--max_mem_size',
-                    default=15,
+                    default=100,
                     help='max the number of memories related one episode')
 parser.add_argument('--max_query_len',
                     default=16,
@@ -29,8 +29,10 @@ print('load data...')
 model = load_model(args.model)
 
 vocab = load_pickle('pickle/mov_vocab.pickle')
-w2i = load_pickle('pickle/mov_w2i.pickle')
-i2w = load_pickle('pickle/mov_i2w.pickle')
+# w2i = load_pickle('pickle/mov_w2i.pickle')
+# i2w = load_pickle('pickle/mov_i2w.pickle')
+w2i = load_pickle('pickle/mov_w2i_label.pickle')
+i2w = load_pickle('pickle/mov_i2w_label.pickle')
 kv_pairs = load_pickle('pickle/mov_kv_pairs.pickle')
 stopwords = load_pickle('pickle/mov_stopwords.pickle')
 
@@ -39,6 +41,8 @@ def predict(q):
     q_tokens = word_tokenize(q)
     q_tokens = lower_list(q_tokens)
     q_tokens = find_ngrams(vocab, q_tokens, 100000)
+    if q_tokens[-1] == '?':
+        q_tokens = q_tokens[:-1]
     print('q_tokens:', q_tokens)
 
     # vectorize a question

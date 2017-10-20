@@ -103,7 +103,7 @@ def load_task(fpath, token_dict=None, max_token_length=None):
 
     return data
 
-def vectorize(data, w2i, query_maxlen):#, w2i_label):
+def vectorize(data, w2i, query_maxlen, w2i_label):
     Q, A = [], []
     for story, question, answer in data:
         # Vectroize question
@@ -114,8 +114,8 @@ def vectorize(data, w2i, query_maxlen):#, w2i_label):
 
 #         y = np.zeros(len(w2i_label))
 #         y[w2i_label[answer[0]]] = 1
-        y = np.zeros(len(w2i))
-        y[w2i[answer[0]]] = 1
+        y = np.zeros(len(w2i_label))
+        y[w2i_label[answer[0]]] = 1
 #         for a in answer:
 #             y[w2i[a]] = 1
 
