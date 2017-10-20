@@ -118,7 +118,7 @@ else:
 print(memnn_kv.summary())
 
 now = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-model_path = 'saved_models/' + now + '_kvnn-weights-{epoch:02d}-{val_acc:.4f}.hdf5'
+model_path = '/media/jonki/H/models/' + now + '_kvnn-weights-{epoch:02d}-{val_acc:.4f}.hdf5'
 checkpoint = ModelCheckpoint(model_path, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 log_path = 'result/' + now + '_emb{}-memsize{}'.format(embd_size, max_mem_size) + '.json'
 class History(Callback):
