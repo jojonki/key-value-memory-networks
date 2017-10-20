@@ -35,6 +35,16 @@ else:
 #         vocab = sorted(vocab)
 vocab = load_pickle('pickle/mov_vocab.pickle')
 vocab_size = len(vocab)
+# label_list = []
+# for _,_,a in (train_data+test_data):
+#     for aa in a:
+#         if aa not in label_list: label_list.append(aa)
+# label_list = sorted(label_list)
+# w2i_label = dict((c, i) for i, c in enumerate(label_list))
+# i2w_label = dict((i, c) for i, c in enumerate(label_list))
+# save_pickle(label_list, 'pickle/mov_label_list.pickle')
+# save_pickle(w2i_label, 'pickle/mov_w2i_label.pickle')
+# save_pickle(i2w_label, 'pickle/mov_i2w_label.pickle')
 
 train_indices, test_indices = [], []
 for i, k in enumerate(train_k):
@@ -75,8 +85,10 @@ stopwords = load_pickle('pickle/mov_stopwords.pickle')
 # save_pickle(i2w, 'mov_i2w.pickle')
 w2i = load_pickle('pickle/mov_w2i.pickle')
 i2w = load_pickle('pickle/mov_i2w.pickle')
-queries_train, answers_train = vectorize(train_data, w2i, query_maxlen)
-queries_test, answers_test = vectorize(test_data, w2i, query_maxlen)
+w2i_label = load_pickle('pickle/mov_w2i_label.pickle')
+i2w_label = load_pickle('pickle/mov_i2w_label.pickle')
+queries_train, answers_train = vectorize(train_data, w2i, query_maxlen, w2i_label)
+queries_test, answers_test = vectorize(test_data, w2i, query_maxlen, w2i_label)
 
 print('-')
 print('queries: integer tensor of shape (samples, max_length)')
@@ -98,7 +110,7 @@ print('vec_k', vec_train_k.shape)
 print('vec_v', vec_train_v.shape)
 
 embd_size = 500
-memnn_kv =MemNNKV(max_mem_len, max_mem_size, query_maxlen, vocab_size, embd_size, None)
+memnn_kv =MemNNKV(max_mem_len, max_mem_size, query_maxlen, vocab_size, embd_size, len(w2i_label))
 print(memnn_kv.summary())
 
 now = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
