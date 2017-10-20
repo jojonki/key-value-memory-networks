@@ -1,30 +1,28 @@
-from __future__ import print_function
-
-from functools import reduce
-from itertools import chain
 import numpy as np
 import datetime
 import json
+import argparse
 
 from keras.callbacks import ModelCheckpoint, Callback
+from keras.models import load_model
 
-from process_data import load_entities, save_pickle, load_pickle, load_kv_pairs, lower_list, vectorize, vectorize_kv, load_kv_dataset
+from process_data import save_pickle, load_pickle, load_kv_pairs, lower_list, vectorize, vectorize_kv, load_kv_dataset
 from net.memnn_kv import MemNNKV
 
-is_babi = False
-if is_babi:
-    train_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_train.txt', is_babi)
-    test_data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt', is_babi)
-else:
-    train_data         = load_pickle('pickle/mov_task1_qa_pipe_train.pickle')
-    test_data          = load_pickle('pickle/mov_task1_qa_pipe_test.pickle')
-    kv_pairs           = load_pickle('pickle/mov_kv_pairs.pickle')
-    train_k            = np.array(load_pickle('pickle/mov_train_k.pickle'))
-    train_v            = np.array(load_pickle('pickle/mov_train_v.pickle'))
-    test_k             = np.array(load_pickle('pickle/mov_test_k.pickle'))
-    test_v             = np.array(load_pickle('pickle/mov_test_v.pickle'))
-    entities           = load_pickle('pickle/mov_entities.pickle')
-    entity_size        = len(entities)
+
+parser = argparse.ArgumentParser(description='')
+parser.add_argument('-m', '--model', help='begin training from saved keras model')
+args = parser.parse_args()
+
+train_data  = load_pickle('pickle/mov_task1_qa_pipe_train.pickle')
+test_data   = load_pickle('pickle/mov_task1_qa_pipe_test.pickle')
+kv_pairs    = load_pickle('pickle/mov_kv_pairs.pickle')
+train_k     = np.array(load_pickle('pickle/mov_train_k.pickle'))
+train_v     = np.array(load_pickle('pickle/mov_train_v.pickle'))
+test_k      = np.array(load_pickle('pickle/mov_test_k.pickle'))
+test_v      = np.array(load_pickle('pickle/mov_test_v.pickle'))
+entities    = load_pickle('pickle/mov_entities.pickle')
+entity_size = len(entities)
 
 # TODO
 # vocab = set(entities 
@@ -100,23 +98,29 @@ print('answers_train shape:', answers_train.shape)
 print('answers_test shape:', answers_test.shape)
 
 
-max_mem_len = 3
+# max_mem_len = 3
+mem_key_len = 2
+mem_val_len = 1
 max_mem_size = 100
-vec_train_k = vectorize_kv(train_k, max_mem_len, max_mem_size, w2i)
-vec_train_v = vectorize_kv(train_v, max_mem_len, max_mem_size, w2i)
-vec_test_k = vectorize_kv(test_k, max_mem_len, max_mem_size, w2i)
-vec_test_v = vectorize_kv(test_v, max_mem_len, max_mem_size, w2i)
+vec_train_k = vectorize_kv(train_k, mem_key_len, max_mem_size, w2i)
+vec_train_v = vectorize_kv(train_v, mem_val_len, max_mem_size, w2i)
+vec_test_k = vectorize_kv(test_k, mem_key_len, max_mem_size, w2i)
+vec_test_v = vectorize_kv(test_v, mem_val_len, max_mem_size, w2i)
 print('vec_k', vec_train_k.shape)
 print('vec_v', vec_train_v.shape)
 
 embd_size = 500
-memnn_kv =MemNNKV(max_mem_len, max_mem_size, query_maxlen, vocab_size, embd_size, len(w2i_label))
+if args.model:
+    print('load saved model')
+    memnn_kv = load_model(args.model)
+else:
+    memnn_kv =MemNNKV(mem_key_len, mem_val_len, max_mem_size, query_maxlen, vocab_size, embd_size, len(w2i_label))
 print(memnn_kv.summary())
 
 now = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-model_path = 'saved_models/' + now + '_kvnn-weights-{epoch:02d}-{loss:.4f}.hdf5'
-checkpoint = ModelCheckpoint(model_path, monitor='loss', verbose=1, save_best_only=True, mode='min')
-log_path = 'result/' + now + '_emb{}-memlen{}-memsize{}'.format(embd_size, max_mem_len, max_mem_size) + '.json'
+model_path = 'saved_models/' + now + '_kvnn-weights-{epoch:02d}-{val_acc:.4f}.hdf5'
+checkpoint = ModelCheckpoint(model_path, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
+log_path = 'result/' + now + '_emb{}-memsize{}'.format(embd_size, max_mem_size) + '.json'
 class History(Callback):
     def on_train_begin(self, logs={}):
         self.result = []

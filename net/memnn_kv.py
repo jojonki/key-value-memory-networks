@@ -5,7 +5,7 @@ from keras.layers import Input, Activation, Dense, Lambda, Permute, Dropout, add
 from keras.layers.normalization import BatchNormalization
 from keras import regularizers
 
-def MemNNKV(mem_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size):
+def MemNNKV(mem_key_len, mem_val_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size):
     print('mem_size:', mem_size)
     print('q_max', query_maxlen)
     print('embd_size', embd_size)
@@ -14,8 +14,10 @@ def MemNNKV(mem_len, mem_size, query_maxlen, vocab_size, embd_size, answer_size)
     print('-----------')
 
     # placeholders
-    key = Input((mem_size, mem_len,), name='Key_Input')
-    val = Input((mem_size, mem_len,), name='Val_Input')
+    # key = Input((mem_size, mem_len,), name='Key_Input')
+    # val = Input((mem_size, mem_len,), name='Val_Input')
+    key = Input((mem_size, mem_key_len,), name='Key_Input')
+    val = Input((mem_size, mem_val_len,), name='Val_Input')
     question = Input((query_maxlen,), name='Question_Input')
     # print('key:', key.shape)
 
