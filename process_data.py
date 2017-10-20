@@ -115,9 +115,11 @@ def vectorize(data, w2i, query_maxlen, w2i_label):
 #         y = np.zeros(len(w2i_label))
 #         y[w2i_label[answer[0]]] = 1
         y = np.zeros(len(w2i_label))
-        y[w2i_label[answer[0]]] = 1
-#         for a in answer:
-#             y[w2i[a]] = 1
+        # y[w2i_label[answer[0]]] = 1
+        for a in answer:
+            # y[w2i[a]] = 1
+            # print(a)
+            y[w2i_label[a]] = 1
 
         Q.append(q)
         A.append(y)
