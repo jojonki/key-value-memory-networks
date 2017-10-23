@@ -236,15 +236,18 @@ if __name__ == '__main__':
     # entities = load_entities('./data/movieqa/knowledge_source/entities.txt')
     # save_pickle(entities, 'mov_entities.pickle')
     # max_entity_length = max(map(len, (e.split(' ') for e in entities))) # for searching n-gram
-    # vocab = load_pickle('pickle/mov_vocab.pickle')
+    vocab = load_pickle('pickle/mov_vocab.pickle')
 
     # --- movie-qa train/test dataset
-    # train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt', vocab, 100)
-    # test_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_test.txt', vocab, 100)
-    # save_pickle(train_data, 'mov_task1_qa_pipe_train.pickle')
-    # save_pickle(test_data, 'mov_task1_qa_pipe_test.pickle')
-    train_data = load_pickle('pickle/mov_task1_qa_pipe_train.pickle')
-    test_data = load_pickle('pickle/mov_task1_qa_pipe_test.pickle')
+    train_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_train.txt', entities, 100)
+    save_pickle(train_data, 'mov_task1_qa_pipe_train.pickle')
+    test_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_test.txt', entities, 100)
+    save_pickle(test_data, 'mov_task1_qa_pipe_test.pickle')
+    dev_data = load_task('./data/movie_dialog_dataset/task1_qa/task1_qa_pipe_dev.txt', entities, 100)
+    save_pickle(dev_data, 'mov_task1_qa_pipe_dev.pickle')
+    # train_data = load_pickle('pickle/mov_task1_qa_pipe_train.pickle')
+    # test_data = load_pickle('pickle/mov_task1_qa_pipe_test.pickle')
+    # dev_data = load_pickle('pickle/mov_task1_qa_pipe_dev.pickle')
     print(len(train_data))
 
     # -- update vocab and w2i/i2w
@@ -262,13 +265,13 @@ if __name__ == '__main__':
     # vocab = load_pickle('pickle/mov_vocab.pickle')
     
     # generate kv_pairs
-    # kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', vocab,  100, True)
-    kv_pairs = load_pickle('pickle/mov_kv_pairs.pickle')
+    kv_pairs = load_kv_pairs('./data/movieqa/knowledge_source/wiki_entities/wiki_entities_kb.txt', entities,  100, True)
+    # kv_pairs = load_pickle('pickle/mov_kv_pairs.pickle')
     # vec_kv_pairs = vectorize_kv_pairs(kv_pairs, 10, 30, entities)
     
     # generate stopwords
-    # stopwords = get_stop_words(1000, vocab, 100, True)
-    stopwords = load_pickle('pickle/mov_stopwords.pickle')
+    stopwords = get_stop_words(1000, vocab, 100, True)
+    # stopwords = load_pickle('pickle/mov_stopwords.pickle')
 
     train_k, train_v = load_kv_dataset(train_data, kv_pairs, stopwords)
     save_pickle(train_k, 'pickle/mov_train_k.pickle')
@@ -276,6 +279,9 @@ if __name__ == '__main__':
     test_k, test_v = load_kv_dataset(test_data, kv_pairs, stopwords)
     save_pickle(test_k, 'pickle/mov_test_k.pickle')
     save_pickle(test_v, 'pickle/mov_test_v.pickle')
+    dev_k, dev_v = load_kv_dataset(dev_data, kv_pairs, stopwords)
+    save_pickle(test_k, 'pickle/mov_dev_k.pickle')
+    save_pickle(test_v, 'pickle/mov_dev_v.pickle')
     
     # data = load_task('./data/tasks_1-20_v1-2/en/qa1_single-supporting-fact_test.txt')
     # data = load_task('./data/tasks_1-20_v1-2/en/qa5_three-arg-relations_test.txt')
