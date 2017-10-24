@@ -8,19 +8,22 @@ parser = argparse.ArgumentParser(description='')
 parser.add_argument('-m', '--model',
                     required=True,
                     help='saved keras model')
-parser.add_argument('--max_mem_len',
-                    default=3,
-                    help='max the number of words in one memory')
+# parser.add_argument('--max_mem_len',
+#                     default=3,
+#                     type=int,
+#                     help='max the number of words in one memory')
 parser.add_argument('--max_mem_size',
                     default=100,
+                    type=int,
                     help='max the number of memories related one episode')
 parser.add_argument('--max_query_len',
                     default=16,
+                    type=int,
                     help='max the number of words in question')
 args = parser.parse_args()
 
 print(args)
-max_mem_len = args.max_mem_len
+# max_mem_len = args.max_mem_len
 max_mem_size = args.max_mem_size
 max_query_len = args.max_query_len
 
@@ -41,8 +44,8 @@ def predict(q):
     q_tokens = word_tokenize(q)
     q_tokens = lower_list(q_tokens)
     q_tokens = find_ngrams(vocab, q_tokens, 100000)
-    if q_tokens[-1] == '?':
-        q_tokens = q_tokens[:-1]
+    # if q_tokens[-1] == '?':
+    #     q_tokens = q_tokens[:-1]
     print('q_tokens:', q_tokens)
 
     # vectorize a question
@@ -55,8 +58,8 @@ def predict(q):
 
     # get related kv and vectorize
     data_k, data_v = load_kv_dataset([(None,q_tokens,None)], kv_pairs, stopwords)
-    vec_k = vectorize_kv(data_k, max_mem_len, max_mem_size, w2i)
-    vec_v = vectorize_kv(data_v, max_mem_len, max_mem_size, w2i)
+    vec_k = vectorize_kv(data_k, 2, max_mem_size, w2i)
+    vec_v = vectorize_kv(data_v, 1, max_mem_size, w2i)
 
     int_predict = model.predict([vec_k, vec_v, vec_q], batch_size=1, verbose=0)     
     # print('q:',q)

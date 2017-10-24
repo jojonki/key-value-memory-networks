@@ -1,7 +1,7 @@
 from keras.models import load_model
 import numpy as np
 import argparse
-from process_data import load_pickle, vectorize, vectorize_kv
+from process_data import load_pickle, vectorize, vectorize_kv, filter_data
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-m', '--model',
@@ -12,9 +12,11 @@ parser.add_argument('-m', '--model',
 #                     help='max the number of words in one memory')
 parser.add_argument('--max_mem_size',
                     default=100,
+                    type=int,
                     help='max the number of memories related one episode')
 parser.add_argument('--max_query_len',
-                    default=16,
+                    default=18,
+                    type=int,
                     help='max the number of words in question')
 args = parser.parse_args()
 print(args)
@@ -27,6 +29,11 @@ test_data = load_pickle('pickle/mov_task1_qa_pipe_test.pickle')
 kv_pairs  = load_pickle('pickle/mov_kv_pairs.pickle')
 test_k    = np.array(load_pickle('pickle/mov_test_k.pickle'))
 test_v    = np.array(load_pickle('pickle/mov_test_v.pickle'))
+
+# filter data which have zero KV or too many KVs
+print('before filter:', len(test_data))
+test_data, test_k, test_v = filter_data(test_data, test_k, test_v, 0, 100)
+print('after filter:', len(test_data))
 
 vocab = load_pickle('pickle/mov_vocab.pickle')
 vocab_size = len(vocab)
@@ -54,9 +61,9 @@ for i, (p, a) in enumerate(zip(pred, answers_test)):
 #     if p_id not in a_ids:
     if a[p_id] == 0:
         wrong_ct += 1
-        print(i, '[WRONG] predict', test_data[i][1])
+        print(i, '[WRONG] Q:', test_data[i][0])
         print('predict:', i2w_label[p_id])
-        print('answer:', test_data[i][2])
+        print('answer:', test_data[i][1])
         # print('kv')
         for k, v, vk, vv in zip(test_k[i], test_v[i], vec_test_k[i], vec_test_v[i]):
             print(k, v)

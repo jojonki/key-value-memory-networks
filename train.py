@@ -43,6 +43,28 @@ entity_size = len(entities)
 vocab = load_pickle('pickle/mov_vocab.pickle')
 vocab_size = len(vocab)
 
+stopwords = load_pickle('pickle/mov_stopwords.pickle')
+# w2i = dict((c, i) for i, c in enumerate(vocab))   
+# i2w = dict((i, c) for i, c in enumerate(vocab))
+# save_pickle(w2i, 'mov_w2i.pickle')
+# save_pickle(i2w, 'mov_i2w.pickle')
+w2i = load_pickle('pickle/mov_w2i.pickle')
+i2w = load_pickle('pickle/mov_i2w.pickle')
+
+# label_list = []
+# for i, (_, a) in enumerate(train_data+test_data+dev_data):
+#     if i % 10000 == 0: print(i, '/', len(train_data+test_data+dev_data))
+#     for aa in a:
+#         if aa not in label_list:
+#               label_list.append(aa)
+# label_list = sorted(label_list)
+# w2i_label = dict((c, i) for i, c in enumerate(label_list))
+# save_pickle(w2i_label, 'pickle/mov_w2i_label.pickle')
+# i2w_label = dict((i, c) for i, c in enumerate(label_list))
+# save_pickle(i2w_label, 'pickle/mov_i2w_label.pickle')
+w2i_label = load_pickle('pickle/mov_w2i_label.pickle')
+i2w_label = load_pickle('pickle/mov_i2w_label.pickle')
+
 # filter data which have zero KV or too many KVs
 print('before filter:', len(train_data), len(test_data))
 train_data, train_k, train_v = filter_data(train_data, train_k, train_v, 0, 100)
@@ -64,27 +86,6 @@ print('-')
 print('Vectorizing the word sequences...')
 
 print('Number of entities', len(entities))
-stopwords = load_pickle('pickle/mov_stopwords.pickle')
-# w2i = dict((c, i) for i, c in enumerate(vocab))   
-# i2w = dict((i, c) for i, c in enumerate(vocab))
-# save_pickle(w2i, 'mov_w2i.pickle')
-# save_pickle(i2w, 'mov_i2w.pickle')
-w2i = load_pickle('pickle/mov_w2i.pickle')
-i2w = load_pickle('pickle/mov_i2w.pickle')
-
-# label_list = []
-# for i, (_, a) in enumerate(train_data+test_data+dev_data):
-#     if i % 10000 == 0: print(i, '/', len(train_data+test_data+dev_data))
-#     for aa in a:
-#          if aa not in label_list:
-#               label_list.append(aa)
-# label_list = sorted(label_list)
-# w2i_label = dict((c, i) for i, c in enumerate(label_list))
-# save_pickle(w2i_label, 'pickle/mov_w2i_label.pickle')
-# i2w_label = dict((i, c) for i, c in enumerate(label_list))
-# save_pickle(i2w_label, 'pickle/mov_i2w_label.pickle')
-w2i_label = load_pickle('pickle/mov_w2i_label.pickle')
-i2w_label = load_pickle('pickle/mov_i2w_label.pickle')
 
 queries_train, answers_train = vectorize(train_data, w2i, query_maxlen, w2i_label)
 queries_test, answers_test = vectorize(test_data, w2i, query_maxlen, w2i_label)
