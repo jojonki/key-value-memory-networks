@@ -20,7 +20,7 @@ download () {
     if [ $? -eq 0 ]
     then
         # "Detected GNU tar"
-        tar --warning=no-unknown-keywords -zxf "$DATA_DIR$FILE_NAME.tar.gz" -C $DATA_DIR
+        tar --warning=no-unknown-keyword -zxf "$DATA_DIR$FILE_NAME.tar.gz" -C $DATA_DIR
     else
         tar -zxf "$DATA_DIR$FILE_NAME.tar.gz" -C $DATA_DIR
     fi
