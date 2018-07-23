@@ -15,7 +15,15 @@ download () {
   fi
 
   if [ ! -d "$DATA_DIR$UNZ_FILE_NAME" ]; then
-    tar --warning=no-unknown-keywor -zxf "$DATA_DIR$FILE_NAME.tar.gz" -C $DATA_DIR
+    # check if using GNU or BSD version of Tar. Only GNU Tar has option --warning=no-unknown-keywords
+    isGnuTar=$(tar --version | grep -q 'gnu')
+    if [ $? -eq 0 ]
+    then
+        # "Detected GNU tar"
+        tar --warning=no-unknown-keywords -zxf "$DATA_DIR$FILE_NAME.tar.gz" -C $DATA_DIR
+    else
+        tar -zxf "$DATA_DIR$FILE_NAME.tar.gz" -C $DATA_DIR
+    fi
   else
     echo "You've already unzipped $FILE_NAME dataset"
   fi
